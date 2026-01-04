@@ -3,26 +3,29 @@
   "builds": [
     {
       "src": "src/server.ts",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["public/**", "dist/**"]
+      }
     }
   ],
   "routes": [
     {
       "src": "/telegram-webhook",
-      "dest": "src/server.ts",
+      "dest": "/src/server.ts",
       "methods": ["POST"]
     },
     {
       "src": "/api/(.*)",
-      "dest": "src/server.ts"
+      "dest": "/src/server.ts"
+    },
+    {
+      "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
+      "dest": "/public/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "src/server.ts"
+      "dest": "/src/server.ts"
     }
   ],
   "env": {
