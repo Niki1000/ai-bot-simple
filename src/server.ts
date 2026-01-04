@@ -18,7 +18,7 @@ connectDB();
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static('public'));
 
 // Логирование запросов
 app.use((req, res, next) => {
@@ -26,134 +26,24 @@ app.use((req, res, next) => {
   next();
 });
 
-// ==================== API ЭНДПОИНТЫ ДЛЯ FRONTEND ====================
+// ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
 
-// 1. Получение данных пользователя
-app.get('/api/user/:telegramId', async (req, res) => {
-  try {
-    const { telegramId } = req.params;
-    const user = await User.findOne({ telegramId: parseInt(telegramId) });
-    
-    if (!user) {
-      // Создаем нового пользователя, если не найден
-      const newUser = new User({
-        telegramId: parseInt(telegramId),
-        firstName: 'Пользователь',
-        trustLevel: 0,
-        photoRequests: 0,
-        createdAt: new Date()
-      });
-      await newUser.save();
-      return res.json(newUser.toObject());
-    }
-    
-    res.json(user.toObject());
-  } catch (error) {
-    console.error('Ошибка API /api/user:', error);
-    res.status(500).json({ error: error.message });
-  }
+// Главная страница (отдаем фронтенд)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// 2. Получение всех персонажей
-app.get('/api/characters', async (req, res) => {
-  try {
-    const characters = await Character.find({ isActive: true })
-      .select('name age description personality welcomeMessage trustRequired photoLimit')
-      .lean();
-    
-    res.json(characters);
-  } catch (error) {
-    console.error('Ошибка API /api/characters:', error);
-    res.status(500).json({ error: error.message });
-  }
+// API эндпоинты
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    time: new Date().toLocaleTimeString('ru-RU'),
+    mode: NODE_ENV,
+    bot: 'Telegram bot готов к работе',
+    mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
 });
 
-// 3. Выбор персонажа
-app.post('/api/select-character', async (req, res) => {
-  try {
-    const { userId, characterId } = req.body;
-    
-    // Проверяем существование персонажа
-    const character = await Character.findById(characterId);
-    if (!character) {
-      return res.status(404).json({ error: 'Персонаж не найден' });
-    }
-    
-    // Обновляем пользователя
-    const user = await User.findOneAndUpdate(
-      { telegramId: parseInt(userId) },
-      { characterId: characterId },
-      { new: true, upsert: true }
-    );
-    
-    res.json({ 
-      success: true, 
-      message: `Вы выбрали ${character.name}`,
-      user: user.toObject()
-    });
-  } catch (error) {
-    console.error('Ошибка API /api/select-character:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 4. Отправка сообщения (чат)
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { userId, message, characterId } = req.body;
-    
-    if (!message || message.trim() === '') {
-      return res.status(400).json({ error: 'Сообщение не может быть пустым' });
-    }
-    
-    // Получаем пользователя и персонажа
-    const user = await User.findOne({ telegramId: parseInt(userId) });
-    const character = characterId ? await Character.findById(characterId) : null;
-    
-    if (!user) {
-      return res.status(404).json({ error: 'Пользователь не найден' });
-    }
-    
-    // Увеличиваем счетчик сообщений
-    await User.updateOne(
-      { telegramId: parseInt(userId) },
-      { $inc: { totalMessages: 1 } }
-    );
-    
-    // Генерируем ответ (пока простой, потом подключим AI)
-    let response;
-    
-    if (!character) {
-      response = `Вы сказали: "${message}". Сначала выберите персонажа для общения!`;
-    } else {
-      // Простая имитация ответа персонажа
-      const responses = [
-        `О, как интересно! "${message}" - это действительно любопытно.`,
-        `Я думаю о том, что вы сказали: "${message}". Давайте поговорим об этом!`,
-        `Хм, "${message}"... У меня есть что сказать на эту тему!`,
-        `Спасибо за сообщение! "${message}" - это заставляет задуматься.`,
-        `Я рада, что вы поделились этим: "${message}". Давайте продолжим беседу!`
-      ];
-      
-      response = `[${character.name}]: ${responses[Math.floor(Math.random() * responses.length)]}`;
-      
-      // Увеличиваем уровень доверия
-      if (user.trustLevel < 100) {
-        await User.updateOne(
-          { telegramId: parseInt(userId) },
-          { $inc: { trustLevel: 1 } }
-        );
-      }
-    }
-    
-    res.json({ response });
-  } catch (error) {
-    console.error('Ошибка API /api/chat:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 5. Проверка подключения к БД
 app.get('/api/db-check', async (req, res) => {
   try {
     const db = mongoose.connection;
@@ -168,97 +58,139 @@ app.get('/api/db-check', async (req, res) => {
     
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
-// ==================== TELEGRAM BOT WEBHOOK ====================
-
-// Webhook для Telegram (только в production)
-if (NODE_ENV === 'production') {
-  app.post('/telegram-webhook', (req, res) => {
-    console.log('📨 Тело запроса от Telegram:', JSON.stringify(req.body, null, 2));
-    bot.handleUpdate(req.body, res);
-  });
-}
-
-// ==================== ОСНОВНЫЕ МАРШРУТЫ ====================
-
-// Главная страница
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+app.get('/api/user/:telegramId', async (req, res) => {
+  try {
+    const { telegramId } = req.params;
+    const user = await User.findOne({ telegramId: parseInt(telegramId) });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    res.json(user.toObject());
+  } catch (error) {
+    console.error('Ошибка API /api/user:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
 });
 
-// Страница здоровья сервера
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    time: new Date().toLocaleTimeString('ru-RU'),
-    mode: NODE_ENV,
-    bot: 'Telegram bot готов к работе',
-    api: 'API работает',
-    mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
-  });
+app.get('/api/characters', async (req, res) => {
+  try {
+    const characters = await Character.find({ isActive: true })
+      .select('name age description personality welcomeMessage trustRequired photoLimit avatarUrl')
+      .lean();
+    
+    res.json(characters);
+  } catch (error) {
+    console.error('Ошибка API /api/characters:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
 });
 
-// 404 для API
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: 'API endpoint not found' });
+app.post('/api/select-character', async (req, res) => {
+  try {
+    const { userId, characterId } = req.body;
+    
+    if (!userId || !characterId) {
+      return res.status(400).json({ error: 'Необходимы userId и characterId' });
+    }
+    
+    const character = await Character.findById(characterId);
+    if (!character) {
+      return res.status(404).json({ error: 'Персонаж не найден' });
+    }
+    
+    const user = await User.findOneAndUpdate(
+      { telegramId: parseInt(userId) },
+      { characterId: characterId },
+      { new: true, upsert: true }
+    );
+    
+    res.json({ 
+      success: true, 
+      message: `Вы выбрали ${character.name}`,
+      user: user.toObject()
+    });
+  } catch (error) {
+    console.error('Ошибка API /api/select-character:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
 });
 
-// 404 для остальных маршрутов
-app.use('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { userId, message } = req.body;
+    
+    if (!message || message.trim() === '') {
+      return res.status(400).json({ error: 'Сообщение не может быть пустым' });
+    }
+    
+    const user = await User.findOne({ telegramId: parseInt(userId) });
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    // Увеличиваем счетчик сообщений
+    await User.updateOne(
+      { telegramId: parseInt(userId) },
+      { $inc: { totalMessages: 1, trustLevel: 1 } }
+    );
+    
+    // Простой ответ (позже добавим AI)
+    const responses = [
+      `О, "${message}"! Как интересно!`,
+      `Хм, я думаю о том, что вы сказали... "${message}"`,
+      `Спасибо за сообщение! Давайте поговорим еще.`,
+      `"${message}" - это хорошая тема для разговора!`,
+      `Я рада, что вы написали мне!`
+    ];
+    
+    const response = responses[Math.floor(Math.random() * responses.length)];
+    
+    res.json({ response });
+  } catch (error) {
+    console.error('Ошибка API /api/chat:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// ==================== TELEGRAM WEBHOOK ====================
+
+// Webhook для Telegram
+app.post('/telegram-webhook', async (req, res) => {
+  try {
+    console.log('📨 Получен запрос от Telegram');
+    await bot.handleUpdate(req.body, res);
+  } catch (error) {
+    console.error('❌ Ошибка обработки вебхука:', error instanceof Error ? error.message : error);
+    res.status(500).send('Error');
+  }
 });
 
 // ==================== ЗАПУСК СЕРВЕРА ====================
 
-const server = app.listen(PORT, () => {
-  console.log(`
+// Для Vercel нужен экспорт app
+export default app;
+
+// Локальный запуск
+if (require.main === module) {
+  const server = app.listen(PORT, () => {
+    console.log(`
 🚀 Сервер запущен на порту ${PORT}
 🌍 Режим работы: ${NODE_ENV}
-📁 Статические файлы: ${path.join(__dirname, '../public')}
 🔗 Главная страница: http://localhost:${PORT}
-🔗 Проверка здоровья: http://localhost:${PORT}/health
-🔗 Проверка БД: http://localhost:${PORT}/api/db-check
-  `);
-  
-  // Локальный запуск бота в режиме polling
-  if (NODE_ENV !== 'production') {
-    console.log('\n🤖 Запускаю бота в режиме polling...');
+🔗 Проверка здоровья: http://localhost:${PORT}/api/health
+    `);
     
-    bot.launch().catch((error) => {
-      console.error('❌ Ошибка запуска бота:', error);
-    });
-    
-    console.log('✅ Бот запущен и готов к работе');
-    console.log('📝 Отправьте команду /start вашему боту в Telegram');
-    
-    setTimeout(() => {
-      console.log('🔄 Бот активно слушает сообщения...\n');
-    }, 1000);
-  } else {
-    console.log('🌐 Бот работает в режиме webhook на Vercel\n');
-  }
-});
-
-// Graceful shutdown
-process.once('SIGINT', () => {
-  console.log('\n🛑 Получен SIGINT, останавливаю бота...');
-  bot.stop();
-  server.close(() => {
-    console.log('✅ Сервер остановлен');
-    process.exit(0);
+    // Локальный запуск бота
+    if (NODE_ENV !== 'production') {
+      console.log('\n🤖 Запускаю бота в режиме polling...');
+      bot.launch().catch(console.error);
+      console.log('✅ Бот запущен локально');
+    }
   });
-});
-
-process.once('SIGTERM', () => {
-  console.log('\n🛑 Получен SIGTERM, останавливаю бота...');
-  bot.stop();
-  server.close(() => {
-    console.log('✅ Сервер остановлен');
-    process.exit(0);
-  });
-});
-
-export { app };
+}
