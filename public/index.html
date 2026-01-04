@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dating Bot - Web App</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Dating Bot</h1>
+            <div class="user-info" id="userInfo">
+                Загрузка...
+            </div>
+        </header>
+        
+        <main>
+            <section class="characters-section">
+                <h2>👥 Доступные персонажи</h2>
+                <div id="charactersList" class="characters-grid">
+                    <!-- Персонажи будут загружены через JS -->
+                </div>
+            </section>
+            
+            <section class="chat-section">
+                <h2>💬 Чат с персонажем</h2>
+                <div class="chat-container">
+                    <div id="messages" class="messages">
+                        <!-- Сообщения будут здесь -->
+                    </div>
+                    <div class="input-area">
+                        <input type="text" id="messageInput" placeholder="Введите сообщение...">
+                        <button onclick="sendMessage()">Отправить</button>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="profile-section">
+                <h2>👤 Ваш профиль</h2>
+                <div id="profileInfo">
+                    <!-- Профиль будет загружен -->
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="/app.js"></script>
+</body>
+</html>
