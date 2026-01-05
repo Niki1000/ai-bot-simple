@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Dating Bot - Web App</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <h1>AI Dating Bot</h1>
+            </div>
+            <div class="user-info" id="userInfo">
+                <div class="user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">Загрузка...</div>
+                    <div class="user-level">Уровень: <span id="userLevel">0</span></div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Персонажи -->
+            <section class="section characters-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-users"></i> Доступные персонажи</h2>
+                    <button class="btn-refresh" onclick="loadCharacters()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="characters-grid" id="charactersGrid">
+                    <!-- Персонажи будут здесь -->
+                </div>
+            </section>
+
+            <!-- Чат -->
+            <section class="section chat-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-comments"></i> Чат с персонажем</h2>
+                    <div class="selected-character" id="selectedCharacter">
+                        Не выбран
+                    </div>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message bot">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                <div class="message-text">
+                                    Привет! 👋 Я AI Dating Bot. Выбери персонажа для начала общения!
+                                </div>
+                                <div class="message-time">только что</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" 
+                               id="messageInput" 
+                               placeholder="Введите сообщение..."
+                               onkeypress="handleKeyPress(event)">
+                        <button class="btn-send" onclick="sendMessage()">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Профиль -->
+            <section class="section profile-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-user-circle"></i> Ваш профиль</h2>
+                </div>
+                <div class="profile-stats" id="profileStats">
+                    <!-- Статистика будет здесь -->
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>AI Dating Bot © 2024 | Работает на Vercel & Telegram</p>
+            <div class="footer-links">
+                <a href="https://t.me/your_bot" target="_blank">
+                    <i class="fab fa-telegram"></i> Telegram Bot
+                </a>
+                <button onclick="checkHealth()" class="btn-status">
+                    <i class="fas fa-heartbeat"></i> Проверить статус
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Модальное окно выбора персонажа -->
+    <div class="modal" id="characterModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Выбор персонажа</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Контент модального окна -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button class="btn btn-primary" onclick="confirmCharacter()">Выбрать</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/**/*.js",
+      "src": "api/*.js",
       "use": "@vercel/node"
     }
   ],
@@ -13,13 +13,12 @@
       "methods": ["POST"]
     },
     {
-      "src": "/api/bot",
-      "dest": "/api/bot.js",
-      "methods": ["POST"]
-    },
-    {
       "src": "/api/health",
       "dest": "/api/health.js"
+    },
+    {
+      "src": "/api/webapp/(.*)",
+      "dest": "/api/webapp.js"
     },
     {
       "src": "/",
