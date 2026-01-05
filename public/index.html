@@ -5,254 +5,70 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🤖 AI Dating Bot</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoi UI', Roboto, sans-serif;
+            font-family: Arial, sans-serif;
+            padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             min-height: 100vh;
-            padding: 20px;
-            line-height: 1.6;
         }
         
         .container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 40px 20px;
-        }
-        
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        h1 {
-            font-size: 42px;
-            margin-bottom: 10px;
-        }
-        
-        .status {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px 0;
+            padding: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
             backdrop-filter: blur(10px);
         }
         
-        .feature-list {
-            display: grid;
-            gap: 15px;
-            margin: 30px 0;
-        }
+        h1 { font-size: 42px; }
         
-        .feature {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .feature-icon {
-            font-size: 24px;
-        }
-        
-        .buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-            flex-wrap: wrap;
-        }
-        
-        .btn {
-            background: white;
-            color: #667eea;
-            padding: 12px 25px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: transform 0.3s;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-        
-        .btn-telegram {
-            background: #0088cc;
-            color: white;
-        }
-        
-        .btn-api {
-            background: #00bfa5;
-            color: white;
-        }
-        
-        .btn-webapp {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-        
-        .error {
-            background: rgba(255, 100, 100, 0.2);
-            padding: 15px;
+        .status {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
             border-radius: 10px;
             margin: 20px 0;
-            border-left: 4px solid #ff5555;
-        }
-        
-        .success {
-            background: rgba(100, 255, 100, 0.2);
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border-left: 4px solid #55ff55;
-        }
-        
-        code {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🤖 AI Dating Bot</h1>
-            <p>Виртуальные персонажи для общения в Telegram</p>
-        </header>
+        <h1>🤖 AI Dating Bot</h1>
+        <p>Бот работает на Vercel! 🚀</p>
         
-        <div class="status" id="status">
-            <h3>📊 Проверка системы...</h3>
-            <div id="status-content">Загружаем статус...</div>
+        <div class="status">
+            <h3>📊 Статус системы:</h3>
+            <div id="status">Загрузка...</div>
         </div>
         
-        <div class="feature-list">
-            <div class="feature">
-                <div class="feature-icon">🤖</div>
-                <div>
-                    <h3>Telegram Бот</h3>
-                    <p>Полнофункциональный бот с командами и меню</p>
-                </div>
-            </div>
-            
-            <div class="feature">
-                <div class="feature-icon">👥</div>
-                <div>
-                    <h3>Система персонажей</h3>
-                    <p>5 уникальных AI-персонажей с разными характерами</p>
-                </div>
-            </div>
-            
-            <div class="feature">
-                <div class="feature-icon">💾</div>
-                <div>
-                    <h3>База данных MongoDB</h3>
-                    <p>Хранение пользователей, диалогов и настроек</p>
-                </div>
-            </div>
-            
-            <div class="feature">
-                <div class="feature-icon">🌐</div>
-                <div>
-                    <h3>Web App интерфейс</h3>
-                    <p>Расширенный интерфейс для выбора персонажей и чата</p>
-                </div>
-            </div>
-        </div>
+        <h3>🔧 Доступные функции:</h3>
+        <ul>
+            <li>Telegram бот с командами</li>
+            <li>Web App интерфейс</li>
+            <li>API для взаимодействия</li>
+        </ul>
         
-        <div class="buttons">
-            <a href="https://t.me/your_bot_username" class="btn btn-telegram" target="_blank">
-                📱 Открыть в Telegram
-            </a>
-            <button onclick="checkAPI()" class="btn btn-api">
-                🔍 Проверить API
-            </button>
-            <a href="/" class="btn btn-webapp">
-                🌐 Открыть Web App
-            </a>
-        </div>
-        
-        <div style="margin-top: 40px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px;">
-            <h3>🚀 Команды для бота:</h3>
-            <ul style="margin: 15px 0 15px 20px;">
-                <li><code>/start</code> - Начать работу</li>
-                <li><code>/girls</code> - Список персонажей</li>
-                <li><code>/profile</code> - Ваш профиль</li>
-                <li><code>/help</code> - Помощь</li>
-            </ul>
-            <p style="margin-top: 10px; font-size: 14px; opacity: 0.8;">
-                📝 Для полного функционала откройте бота в Telegram
-            </p>
-        </div>
+        <h3>🚀 Для тестирования:</h3>
+        <p>Откройте Telegram и найдите нашего бота!</p>
     </div>
     
     <script>
-        // Проверка API
-        async function checkAPI() {
-            const statusEl = document.getElementById('status-content');
-            statusEl.innerHTML = 'Проверяем API...';
-            
+        async function checkStatus() {
             try {
                 const response = await fetch('/api/health');
-                if (response.ok) {
-                    const data = await response.json();
-                    statusEl.innerHTML = `
-                        <div class="success">
-                            ✅ API работает отлично!<br>
-                            Статус: <strong>${data.status}</strong><br>
-                            Сообщение: ${data.message}<br>
-                            Время: ${new Date(data.timestamp).toLocaleString('ru-RU')}
-                        </div>
-                    `;
-                } else {
-                    statusEl.innerHTML = `
-                        <div class="error">
-                            ❌ API не отвечает (статус: ${response.status})<br>
-                            Проверьте настройки сервера
-                        </div>
-                    `;
-                }
+                const data = await response.json();
+                document.getElementById('status').innerHTML = 
+                    `✅ <strong>${data.status}</strong><br>
+                     Время: ${new Date(data.timestamp).toLocaleString('ru-RU')}<br>
+                     Режим: ${data.environment}`;
             } catch (error) {
-                statusEl.innerHTML = `
-                    <div class="error">
-                        ❌ Ошибка подключения к API<br>
-                        ${error.message}<br>
-                        Убедитесь, что сервер запущен
-                    </div>
-                `;
+                document.getElementById('status').innerHTML = 
+                    `❌ Ошибка: ${error.message}`;
             }
         }
         
-        // Автоматическая проверка при загрузке
-        document.addEventListener('DOMContentLoaded', checkAPI);
-        
-        // Проверка Web App
-        function checkWebApp() {
-            if (window.Telegram && window.Telegram.WebApp) {
-                Telegram.WebApp.ready();
-                Telegram.WebApp.expand();
-                document.getElementById('status-content').innerHTML = `
-                    <div class="success">
-                        ✅ Запущено в Telegram Web App!<br>
-                        Режим: ${Telegram.WebApp.platform}
-                    </div>
-                `;
-            }
-        }
-        
-        checkWebApp();
+        checkStatus();
     </script>
 </body>
 </html>

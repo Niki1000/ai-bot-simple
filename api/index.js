@@ -1,132 +1,88 @@
-// api/index.js
 const express = require('express');
-const mongoose = require('mongoose');
-const { Telegraf, Markup } = require('telegraf');
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const { Telegraf } = require('telegraf');
 require('dotenv').config();
 
 const app = express();
+
+// Middleware
 app.use(express.json());
 
-// Статические файлы
-app.use(express.static('public'));
+// Проверка токена
+if (!process.env.TELEGRAM_BOT_TOKEN) {
+  console.error('❌ TELEGRAM_BOT_TOKEN не установлен!');
+  process.exit(1);
+}
 
-// MongoDB подключение
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-// Создание тестовых персонажей
-app.post('/api/seed', async (req, res) => {
-  try {
-    await Character.deleteMany({});
-    
-    const characters = [
-      {
-        name: "Анна",
-        age: 25,
-        description: "Романтичная девушка с мягким характером",
-        personality: "Заботливая, чувствительная",
-        avatarUrl: "https://i.pravatar.cc/150?img=1",
-        welcomeMessage: "Привет! Я так рада познакомиться!",
-        bio: "Люблю искусство и долгие прогулки",
-        trustRequired: 10,
-        photoLimit: 3,
-        isActive: true
-      },
-      // ... добавьте остальных персонажей
-    ];
-    
-    await Character.insertMany(characters);
-    res.json({ success: true, count: characters.length });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+console.log('🤖 Инициализация бота...');
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
-// Команда /start
-bot.start(async (ctx) => {
-  const userId = ctx.from.id;
-  const firstName = ctx.from.first_name;
-  
-  // Сохраняем пользователя в БД
-  let user = await User.findOne({ telegramId: userId });
-  if (!user) {
-    user = new User({
-      telegramId: userId,
-      username: ctx.from.username,
-      firstName: firstName,
-      lastName: ctx.from.last_name,
-      trustLevel: 0,
-      photoRequests: 0,
-      totalMessages: 0
-    });
-    await user.save();
-  }
-  
-  // Кнопки с Web App (работает на Vercel!)
-  const webAppUrl = process.env.WEBAPP_URL || 'https://ваш-проект.vercel.app';
-  
-  ctx.reply(
-    `Привет, ${firstName}! 👋\n` +
-    'Я - AI Dating Bot с виртуальными персонажами!\n\n' +
+// Простые команды для теста
+bot.start((ctx) => {
+  console.log(`🚀 /start от ${ctx.from.id} (${ctx.from.first_name})`);
+  return ctx.reply(
+    `Привет, ${ctx.from.first_name}! 👋\n` +
+    'Бот успешно работает на Vercel!\n\n' +
     '📋 Команды:\n' +
-    '/girls - Посмотреть персонажей\n' +
-    '/profile - Мой профиль\n' +
-    '/help - Помощь\n\n' +
-    '🌐 Нажми кнопку ниже для Web App!',
-    Markup.keyboard([
-      ['👥 Персонажи', '👤 Профиль'],
-      ['💬 Начать чат', '❓ Помощь'],
-      [Markup.button.webApp('🌐 Открыть Web App', webAppUrl)]
-    ]).resize()
+    '/girls - Персонажи\n' +
+    '/profile - Профиль\n' +
+    '/help - Помощь'
   );
 });
 
-// Остальные команды (добавьте аналогично)
-bot.command('girls', async (ctx) => {
-  // Логика команды /girls
+bot.command('help', (ctx) => {
+  return ctx.reply(
+    '📚 Доступные команды:\n' +
+    '/start - Начать диалог\n' +
+    '/girls - Список персонажей\n' +
+    '/profile - Ваш профиль\n' +
+    '/help - Эта справка\n\n' +
+    'Просто напишите сообщение для общения!'
+  );
 });
 
-bot.command('profile', async (ctx) => {
-  // Логика команды /profile
+bot.on('text', (ctx) => {
+  console.log(`📨 Сообщение от ${ctx.from.id}: ${ctx.message.text}`);
+  return ctx.reply(`Вы сказали: "${ctx.message.text}"`);
 });
 
-// Вебхук маршрут
-app.post('/telegram-webhook', async (req, res) => {
-  try {
-    console.log('📨 Получен запрос от Telegram');
-    await bot.handleUpdate(req.body, res);
-  } catch (error) {
-    console.error('❌ Ошибка обработки вебхука:', error);
-    res.status(500).send('Error');
+// Обработчик ошибок бота
+bot.catch((err, ctx) => {
+  console.error(`❌ Ошибка в боте:`, err);
+  if (ctx && ctx.reply) {
+    ctx.reply('Произошла ошибка. Попробуйте позже.');
   }
 });
 
-// Главная страница
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/../public/index.html');
+// Вебхук обработчик
+app.post('/telegram-webhook', async (req, res) => {
+  console.log('🌐 Вебхук получен, update_id:', req.body?.update_id);
+  
+  try {
+    // Важно: не вызываем next() и не отправляем ответ сами
+    await bot.handleUpdate(req.body, res);
+  } catch (error) {
+    console.error('❌ Ошибка обработки вебхука:', error);
+    
+    // Если бот не отправил ответ, отправляем успешный
+    if (!res.headersSent) {
+      res.status(200).json({ ok: true });
+    }
+  }
 });
 
-// API эндпоинты
+// API маршруты
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'AI Dating Bot работает!',
-    timestamp: new Date().toISOString()
+  res.json({
+    status: 'OK',
+    service: 'Telegram Bot API',
+    timestamp: new Date().toISOString(),
+    bot: 'ready'
   });
 });
 
-// Telegram Webhook
-app.post('/telegram-webhook', async (req, res) => {
-  // Временный заглушка
-  console.log('Telegram webhook received:', req.body);
-  res.json({ ok: true });
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API работает!' });
 });
 
-// Обработка 404
-app.use('*', (req, res) => {
-  res.sendFile(__dirname + '/../public/index.html');
-});
-
+// Экспортируем для Vercel
 module.exports = app;
