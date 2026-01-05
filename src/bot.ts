@@ -7,7 +7,7 @@ dotenv.config();
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
 const isProduction = process.env.NODE_ENV === 'production';
-const webAppUrl = process.env.WEBAPP_URL || 'https://ваш-проект.vercel.app';
+const webAppUrl = process.env.WEBAPP_URL || 'https://ai-bot-simple.vercel.app';
 
 // Команда /start
 bot.start(async (ctx: Context) => {
