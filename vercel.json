@@ -2,33 +2,23 @@
   "version": 2,
   "builds": [
     {
-      "src": "src/server.ts",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["public/**", "dist/**"]
-      }
+      "src": "api/index.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/telegram-webhook",
-      "dest": "/src/server.ts",
+      "dest": "/api/index.js",
       "methods": ["POST"]
     },
     {
       "src": "/api/(.*)",
-      "dest": "/src/server.ts"
-    },
-    {
-      "src": "/(.*\\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
-      "dest": "/public/$1"
+      "dest": "/api/index.js"
     },
     {
       "src": "/(.*)",
-      "dest": "/src/server.ts"
+      "dest": "/api/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
