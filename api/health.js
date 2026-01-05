@@ -1,15 +1,15 @@
-// api/health.js - отдельный health check
+// api/health.js - проверка здоровья
 module.exports = (req, res) => {
-  console.log('🏥 Health check called');
-  
   res.setHeader('Content-Type', 'application/json');
   res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    services: {
-      telegram: !!process.env.TELEGRAM_BOT_TOKEN,
-      vercel: true
-    }
+    service: 'AI Dating Bot',
+    endpoints: {
+      bot: 'POST /api/bot',
+      health: 'GET /api/health',
+      main: 'GET /'
+    },
+    environment: process.env.NODE_ENV || 'development'
   });
 };
