@@ -3,80 +3,140 @@ const User = require('../src/models/User');
 const Character = require('../src/models/Character');
 
 const router = express.Router();
-router.use(express.json());
 
-// GET /api/webapp/girls (Tinder swipe cards)
-router.get('/girls', async (req, res) => {
+// GET /api/webapp/characters (Used by app.js)
+router.get('/characters', async (req, res) => {
   try {
-    const girls = await Character.find({ isActive: true })
-      .select('name age description avatarUrl bio sympathyReq')
+    const characters = await Character.find({ isActive: true })
+      .select('name age description personality avatarUrl welcomeMessage bio photos baseSympathyReq photoUnlockChance')
       .lean();
-    res.json({ success: true, girls });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+    
+    res.json({ success: true, characters });
+  } catch (error) {
+    console.error('Error getting characters:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/webapp/user/:telegramId
+router.get('/user/:telegramId', async (req, res) => {
+  try {
+    const user = await User.findOne({ telegramId: parseInt(req.params.telegramId) });
+    res.json({ success: true, user: user || {} });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/webapp/select-character
+router.post('/select-character', async (req, res) => {
+  try {
+    const { telegramId, characterId } = req.body;
+    
+    const character = await Character.findById(characterId);
+    if (!character) {
+      return res.status(404).json({ success: false, error: 'Character not found' });
+    }
+    
+    const user = await User.findOneAndUpdate(
+      { telegramId: parseInt(telegramId) },
+      { selectedGirl: character.name },
+      { new: true, upsert: true }
+    );
+    
+    res.json({ success: true, message: `Выбрана ${character.name}!`, user, character });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // POST /api/webapp/chat (sympathy +1)
 router.post('/chat', async (req, res) => {
-  const { telegramId, characterId, message } = req.body;
+  const { telegramId, message } = req.body;
   try {
-    const user = await User.findOneAndUpdate(
+    const user = await User.findOne({ telegramId: parseInt(telegramId) });
+    const characterId = user?.selectedGirl || 'default';
+    
+    await User.findOneAndUpdate(
       { telegramId: parseInt(telegramId) },
       {
         $inc: { 
-          [`sympathy.${characterId}`]: 1,  // +1 sympathy
+          [`sympathy.${characterId}`]: 1,
           totalMessages: 1 
         },
         lastActive: new Date()
       },
-      { upsert: true, new: true }
+      { upsert: true }
     );
 
-    // Dummy responses
-    const responses = ["Интересно! Расскажи больше 😊", "Мне нравится как ты думаешь ❤️", "Ты особенный 💕"];
-    res.json({ success: true, response: responses[Math.floor(Math.random()*3)], sympathy: user.sympathy.get(characterId) || 0 });
+    const responses = [
+      "Интересно! Расскажи больше 😊", 
+      "Мне нравится как ты думаешь ❤️", 
+      "Ты особенный 💕",
+      "Я рада что ты со мной 🥰",
+      "Хочу узнать тебя лучше 💭"
+    ];
+    
+    res.json({ 
+      success: true, 
+      response: responses[Math.floor(Math.random() * responses.length)]
+    });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// POST /api/webapp/photo (chance-based unlock)
-router.post('/photo', async (req, res) => {
+// POST /api/webapp/request-photo (chance unlock)
+router.post('/request-photo', async (req, res) => {
   const { telegramId, characterId } = req.body;
   try {
     const user = await User.findOne({ telegramId: parseInt(telegramId) });
     const girl = await Character.findById(characterId);
     
-    const sympathy = user.sympathy.get(characterId) || 0;
-    const chance = Math.min(0.9, girl.photoUnlockChance + (sympathy / 200));  // Max 90%
+    if (!girl || !user) {
+      return res.status(404).json({ success: false, message: 'Not found' });
+    }
+    
+    const sympathy = user.sympathy?.get(characterId.toString()) || 0;
+    const unlocked = user.unlockedPhotos?.get(characterId.toString()) || [];
+    
+    // Calculate chance (higher sympathy = higher chance)
+    const baseChance = girl.photoUnlockChance || 0.3;
+    const chance = Math.min(0.9, baseChance + (sympathy / 100));
     
     if (Math.random() < chance) {
       // Unlock next photo
-      const unlocked = user.unlockedPhotos.get(characterId) || [];
-      const nextPhoto = girl.photos[unlocked.length];
+      const nextPhoto = girl.photos?.[unlocked.length];
+      
       if (nextPhoto) {
         unlocked.push(nextPhoto);
+        
         await User.findOneAndUpdate(
           { telegramId: parseInt(telegramId) },
-          { [`unlockedPhotos.${characterId}`]: unlocked, $inc: { photosUnlocked: 1 } }
+          { 
+            [`unlockedPhotos.${characterId}`]: unlocked,
+            $inc: { photosUnlocked: 1 }
+          }
         );
-        res.json({ success: true, photo: nextPhoto, sympathyReq: girl.baseSympathyReq });
+        
+        res.json({ 
+          success: true, 
+          photo: nextPhoto,
+          message: `Вот моё фото! 📸 (${unlocked.length}/${girl.photos.length})`
+        });
       } else {
-        res.json({ success: false, message: "Все фото разблокированы!" });
+        res.json({ success: false, message: "Все фото разблокированы! 🎉" });
       }
     } else {
-      res.json({ success: false, message: `Попробуй ещё! Нужно ${girl.baseSympathyReq + unlocked.length * 10} симпатии (шанс: ${(chance*100).toFixed(0)}%)` });
+      const needed = (girl.baseSympathyReq || 10) + unlocked.length * 5;
+      res.json({ 
+        success: false, 
+        message: `Пока не готова 🙈 Симпатия: ${sympathy}/${needed} (Шанс: ${(chance*100).toFixed(0)}%)`
+      });
     }
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ success: false, error: e.message });
   }
-});
-
-// GET /api/webapp/user/:id (stats)
-router.get('/user/:telegramId', async (req, res) => {
-  const user = await User.findOne({ telegramId: parseInt(req.params.telegramId) });
-  res.json({ success: true, user: user || {} });
 });
 
 module.exports = router;
