@@ -6,7 +6,10 @@
   "routes": [
     { "src": "/telegram-webhook", "dest": "/api/bot.js", "methods": ["POST"] },
     { "src": "/api/health", "dest": "/api/health.js" },
-    { "src": "/api/webapp/(.*)", "dest": "/api/webapp.js" },
+    { "src": "/api/webapp/seed", "dest": "/api/webapp.js?path=seed" },
+    { "src": "/api/webapp/characters", "dest": "/api/webapp.js?path=characters" },
+    { "src": "/api/webapp/user/(.*)", "dest": "/api/webapp.js?path=user&id=$1" },
+    { "src": "/api/webapp/(.*)", "dest": "/api/webapp.js?path=$1" },
     { "src": "/(.*)", "dest": "/api/index.js" }
   ]
 }
