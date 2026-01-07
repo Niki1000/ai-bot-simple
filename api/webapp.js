@@ -166,27 +166,83 @@ router.get('/seed', async (req, res) => {
   }
 });
 
-// GET /api/webapp/characters - Get all active girls
+// // GET /api/webapp/characters - Get all active girls
+// router.get('/characters', async (req, res) => {
+//   try {
+//     await connectDB();
+    
+//     const characters = await Character.find({ isActive: true }).lean();
+//     console.log(`📋 Found ${characters.length} characters`);
+    
+//     res.json({ 
+//       success: true, 
+//       characters: characters 
+//     });
+    
+//   } catch (error) {
+//     console.error('❌ Characters error:', error);
+//     res.status(500).json({ 
+//       success: false, 
+//       error: error.message 
+//     });
+//   }
+// });
+
+// GET /api/webapp/characters - HARDCODED (no DB)
 router.get('/characters', async (req, res) => {
   try {
-    await connectDB();
+    // Skip DB, return fake girls
+    const characters = [
+      {
+        _id: '1',
+        name: "Анна", age: 25,
+        description: "Романтичная девушка",
+        personality: "Заботливая",
+        avatarUrl: "https://i.pravatar.cc/400?img=1",
+        welcomeMessage: "Привет! 🌸",
+        bio: "Дизайнер",
+        photos: ["https://i.pravatar.cc/400?img=1"],
+        baseSympathyReq: 10,
+        photoUnlockChance: 0.3,
+        isActive: true
+      },
+      {
+        _id: '2',
+        name: "Мария", age: 27,
+        description: "Бизнес-леди",
+        personality: "Умная",
+        avatarUrl: "https://i.pravatar.cc/400?img=5",
+        welcomeMessage: "Здравствуй 💼",
+        bio: "IT",
+        photos: ["https://i.pravatar.cc/400?img=5"],
+        baseSympathyReq: 20,
+        photoUnlockChance: 0.25,
+        isActive: true
+      },
+      {
+        _id: '3',
+        name: "София", age: 23,
+        description: "Студентка",
+        personality: "Весёлая",
+        avatarUrl: "https://i.pravatar.cc/400?img=6",
+        welcomeMessage: "Йоу! 🎉",
+        bio: "Журналистика",
+        photos: ["https://i.pravatar.cc/400?img=6"],
+        baseSympathyReq: 5,
+        photoUnlockChance: 0.4,
+        isActive: true
+      }
+    ];
     
-    const characters = await Character.find({ isActive: true }).lean();
-    console.log(`📋 Found ${characters.length} characters`);
-    
-    res.json({ 
-      success: true, 
-      characters: characters 
-    });
+    console.log(`📋 Returning ${characters.length} hardcoded girls`);
+    res.json({ success: true, characters });
     
   } catch (error) {
-    console.error('❌ Characters error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+    console.error('❌ Error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 // GET /api/webapp/user/:telegramId - Get user data
 router.get('/user/:telegramId', async (req, res) => {
