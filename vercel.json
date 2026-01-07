@@ -1,32 +1,12 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "api/*.js",
-      "use": "@vercel/node"
-    }
+    { "src": "api/*.js", "use": "@vercel/node" }
   ],
   "routes": [
-    {
-      "src": "/telegram-webhook",
-      "dest": "/api/bot.js",
-      "methods": ["POST"]
-    },
-    {
-      "src": "/api/health",
-      "dest": "/api/health.js"
-    },
-    {
-      "src": "/api/webapp/(.*)",
-      "dest": "/api/webapp.js"
-    },
-    {
-      "src": "/",
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.js"
-    }
+    { "src": "/telegram-webhook", "dest": "/api/bot.js", "methods": ["POST"] },
+    { "src": "/api/health", "dest": "/api/health.js" },
+    { "src": "/api/webapp/(.*)", "dest": "/api/webapp.js" },
+    { "src": "/(.*)", "dest": "/api/index.js" }
   ]
 }
