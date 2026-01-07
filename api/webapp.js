@@ -138,5 +138,73 @@ router.post('/request-photo', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
+// GET /api/webapp/seed (Seed database)
+router.get('/seed', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    
+    if (!process.env.MONGODB_URI) {
+      return res.status(500).json({ error: 'MONGODB_URI not set' });
+    }
+    
+    // Connect if not connected
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(process.env.MONGODB_URI);
+    }
+    
+    await Character.deleteMany({});
+    
+    const girls = [
+      {
+        name: "Анна", age: 25,
+        description: "Романтичная девушка",
+        personality: "Заботливая, чувствительная",
+        avatarUrl: "https://i.pravatar.cc/400?img=1",
+        welcomeMessage: "Привет! Рада знакомству! 🌸",
+        bio: "Дизайнер, люблю живопись",
+        photos: [
+          "https://i.pravatar.cc/400?img=1",
+          "https://i.pravatar.cc/400?img=10",
+          "https://i.pravatar.cc/400?img=20"
+        ],
+        baseSympathyReq: 10,
+        photoUnlockChance: 0.3,
+        isActive: true
+      },
+      {
+        name: "Мария", age: 27,
+        description: "Бизнес-леди",
+        personality: "Умная, амбициозная",
+        avatarUrl: "https://i.pravatar.cc/400?img=5",
+        welcomeMessage: "Здравствуй! 💼",
+        bio: "Руковожу IT-компанией",
+        photos: ["https://i.pravatar.cc/400?img=5", "https://i.pravatar.cc/400?img=15"],
+        baseSympathyReq: 20,
+        photoUnlockChance: 0.25,
+        isActive: true
+      },
+      {
+        name: "София", age: 23,
+        description: "Веселая студентка",
+        personality: "Оптимистичная",
+        avatarUrl: "https://i.pravatar.cc/400?img=6",
+        welcomeMessage: "Йоу! 🎉",
+        bio: "Изучаю журналистику",
+        photos: ["https://i.pravatar.cc/400?img=6", "https://i.pravatar.cc/400?img=16"],
+        baseSympathyReq: 5,
+        photoUnlockChance: 0.4,
+        isActive: true
+      }
+    ];
+    
+    const inserted = await Character.insertMany(girls);
+    res.json({ success: true, count: inserted.length, girls: inserted });
+    
+  } catch (e) {
+    console.error('Seed error:', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
 
 module.exports = router;
