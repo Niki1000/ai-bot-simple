@@ -3,120 +3,401 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 AI Dating Bot - Web App</title>
-    <link rel="stylesheet" href="/style.css">
+    <title>AI Dating - Tinder Girls</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        .container { height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Header */
+        .header { 
+            background: rgba(255,255,255,0.95); 
+            backdrop-filter: blur(20px); 
+            padding: 15px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+        }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo i { font-size: 28px; color: #ff6b6b; }
+        .logo h1 { 
+            font-size: 20px; 
+            font-weight: 700; 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .user-avatar { 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            background: #667eea; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: white; 
+            font-size: 18px; 
+        }
+        
+        /* Swipe Container */
+        .main-content { flex: 1; position: relative; overflow: hidden; }
+        .swipe-container { 
+            height: 100%; 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px; 
+        }
+        
+        /* Profile Card */
+        .profile-card { 
+            width: 340px; 
+            max-width: 90vw; 
+            height: 520px; 
+            max-height: 70vh; 
+            background: white; 
+            border-radius: 24px; 
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2); 
+            position: absolute; 
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s; 
+            overflow: hidden; 
+            cursor: grab;
+            user-select: none;
+        }
+        .profile-card.dragging { cursor: grabbing; transition: none; }
+        .profile-card.swipe-right { 
+            transform: translateX(400px) rotate(20deg) !important; 
+            opacity: 0; 
+        }
+        .profile-card.swipe-left { 
+            transform: translateX(-400px) rotate(-20deg) !important; 
+            opacity: 0; 
+        }
+        
+        .card-image { 
+            width: 100%; 
+            height: 65%; 
+            object-fit: cover; 
+            position: relative;
+        }
+        .card-overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 35%; 
+            background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.7)); 
+        }
+        
+        .profile-info { 
+            padding: 20px; 
+            background: white; 
+            position: relative; 
+        }
+        .profile-name { 
+            font-size: 28px; 
+            font-weight: 700; 
+            margin-bottom: 5px; 
+            color: #333; 
+        }
+        .profile-age { 
+            font-size: 20px; 
+            color: #667eea; 
+            margin-bottom: 12px; 
+        }
+        .profile-bio { 
+            font-size: 15px; 
+            line-height: 1.6; 
+            color: #666; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
+        /* Action Buttons */
+        .action-buttons { 
+            position: absolute; 
+            bottom: 40px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            display: flex; 
+            gap: 20px; 
+            z-index: 10;
+        }
+        .btn-action { 
+            width: 65px; 
+            height: 65px; 
+            border-radius: 50%; 
+            border: none; 
+            font-size: 26px; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-action:active { transform: scale(0.9); }
+        .btn-pass { background: linear-gradient(135deg, #ff6b6b, #ff8e53); color: white; }
+        .btn-super { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; font-size: 22px; }
+        .btn-like { background: linear-gradient(135deg, #43e97b, #38f9d7); color: white; }
+        
+        /* No More Cards */
+        .no-more { 
+            text-align: center; 
+            color: white; 
+            font-size: 20px; 
+            padding: 40px; 
+            display: none;
+        }
+        .no-more i { font-size: 60px; margin-bottom: 20px; opacity: 0.7; }
+        .no-more button { 
+            margin-top: 20px; 
+            padding: 15px 30px; 
+            font-size: 16px; 
+            border-radius: 30px; 
+            border: none; 
+            background: white; 
+            color: #667eea; 
+            cursor: pointer; 
+            font-weight: 600;
+        }
+        
+        /* Chat View */
+        .chat-view { 
+            display: none; 
+            flex-direction: column; 
+            height: 100%; 
+            background: white;
+        }
+        .chat-header { 
+            padding: 15px 20px; 
+            background: #667eea; 
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            gap: 15px;
+        }
+        .chat-header .back-btn { 
+            background: none; 
+            border: none; 
+            color: white; 
+            font-size: 24px; 
+            cursor: pointer;
+        }
+        .chat-header .girl-info { flex: 1; }
+        .chat-header .girl-name { font-size: 18px; font-weight: 600; }
+        .sympathy-bar { 
+            background: rgba(255,255,255,0.3); 
+            height: 6px; 
+            border-radius: 3px; 
+            margin-top: 5px; 
+            overflow: hidden;
+        }
+        .sympathy-fill { 
+            background: #43e97b; 
+            height: 100%; 
+            width: 0%; 
+            transition: width 0.3s;
+        }
+        
+        .chat-messages { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .message { 
+            margin-bottom: 15px; 
+            display: flex; 
+            gap: 10px;
+        }
+        .message.user { flex-direction: row-reverse; }
+        .message-bubble { 
+            max-width: 70%; 
+            padding: 12px 16px; 
+            border-radius: 18px; 
+            font-size: 15px; 
+            line-height: 1.4;
+        }
+        .message.bot .message-bubble { 
+            background: white; 
+            color: #333; 
+            border-bottom-left-radius: 4px;
+        }
+        .message.user .message-bubble { 
+            background: #667eea; 
+            color: white; 
+            border-bottom-right-radius: 4px;
+        }
+        
+        .chat-input-container { 
+            padding: 15px; 
+            background: white; 
+            border-top: 1px solid #eee; 
+            display: flex; 
+            gap: 10px;
+        }
+        .chat-input-container input { 
+            flex: 1; 
+            padding: 12px 16px; 
+            border: 1px solid #ddd; 
+            border-radius: 24px; 
+            font-size: 15px; 
+            outline: none;
+        }
+        .chat-input-container button { 
+            width: 45px; 
+            height: 45px; 
+            border-radius: 50%; 
+            border: none; 
+            background: #667eea; 
+            color: white; 
+            font-size: 18px; 
+            cursor: pointer;
+        }
+        .chat-input-container .btn-photo { 
+            background: #ff6b6b;
+        }
+        
+        /* Photo Modal */
+        .photo-modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background: rgba(0,0,0,0.9); 
+            z-index: 1000; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 20px;
+        }
+        .photo-modal img { 
+            max-width: 90%; 
+            max-height: 80vh; 
+            border-radius: 12px;
+        }
+        .photo-modal .close-modal { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            background: rgba(255,255,255,0.2); 
+            border: none; 
+            color: white; 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            font-size: 24px; 
+            cursor: pointer;
+        }
+        
+        /* Loading */
+        .loading { 
+            text-align: center; 
+            padding: 40px; 
+            color: white; 
+            font-size: 18px;
+        }
+        .loading i { 
+            font-size: 40px; 
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <header class="header">
+        <!-- Header -->
+        <div class="header">
             <div class="logo">
-                <i class="fas fa-robot"></i>
-                <h1>AI Dating Bot</h1>
+                <i class="fas fa-heart"></i>
+                <h1>AI Dating</h1>
             </div>
-            <div class="user-info" id="userInfo">
-                <div class="user-avatar">
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">
                     <i class="fas fa-user"></i>
                 </div>
-                <div class="user-details">
-                    <div class="user-name" id="userName">Загрузка...</div>
-                    <div class="user-level">Уровень: <span id="userLevel">0</span></div>
-                </div>
-            </div>
-        </header>
-
-        <main class="main-content">
-            <!-- Персонажи -->
-            <section class="section characters-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-users"></i> Доступные персонажи</h2>
-                    <button class="btn-refresh" onclick="loadCharacters()">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
-                <div class="characters-grid" id="charactersGrid">
-                    <!-- Персонажи будут здесь -->
-                </div>
-            </section>
-
-            <!-- Чат -->
-            <section class="section chat-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-comments"></i> Чат с персонажем</h2>
-                    <div class="selected-character" id="selectedCharacter">
-                        Не выбран
-                    </div>
-                </div>
-                <div class="chat-container">
-                    <div class="chat-messages" id="chatMessages">
-                        <div class="message bot">
-                            <div class="message-avatar">
-                                <i class="fas fa-robot"></i>
-                            </div>
-                            <div class="message-content">
-                                <div class="message-text">
-                                    Привет! 👋 Я AI Dating Bot. Выбери персонажа для начала общения!
-                                </div>
-                                <div class="message-time">только что</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="chat-input">
-                        <input type="text" 
-                               id="messageInput" 
-                               placeholder="Введите сообщение..."
-                               onkeypress="handleKeyPress(event)">
-                        <button class="btn-send" onclick="sendMessage()">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Профиль -->
-            <section class="section profile-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-user-circle"></i> Ваш профиль</h2>
-                </div>
-                <div class="profile-stats" id="profileStats">
-                    <!-- Статистика будет здесь -->
-                </div>
-            </section>
-        </main>
-
-        <footer class="footer">
-            <p>AI Dating Bot © 2024 | Работает на Vercel & Telegram</p>
-            <div class="footer-links">
-                <a href="https://t.me/your_bot" target="_blank">
-                    <i class="fab fa-telegram"></i> Telegram Bot
-                </a>
-                <button onclick="checkHealth()" class="btn-status">
-                    <i class="fas fa-heartbeat"></i> Проверить статус
-                </button>
-            </div>
-        </footer>
-    </div>
-
-    <!-- Модальное окно выбора персонажа -->
-    <div class="modal" id="characterModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Выбор персонажа</h3>
-                <button class="modal-close" onclick="closeModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body" id="modalBody">
-                <!-- Контент модального окна -->
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
-                <button class="btn btn-primary" onclick="confirmCharacter()">Выбрать</button>
             </div>
         </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Swipe View -->
+            <div id="swipeView" class="swipe-container">
+                <div class="loading" id="loading">
+                    <i class="fas fa-spinner fa-spin"></i><br>
+                    Загрузка девушек...
+                </div>
+                <div class="no-more" id="noMore">
+                    <i class="fas fa-heart-broken"></i><br>
+                    Девушки закончились!<br>
+                    <button onclick="loadGirls()">Обновить</button>
+                </div>
+            </div>
+            
+            <!-- Chat View -->
+            <div id="chatView" class="chat-view">
+                <div class="chat-header">
+                    <button class="back-btn" onclick="backToSwipe()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="girl-info">
+                        <div class="girl-name" id="chatGirlName">—</div>
+                        <div class="sympathy-bar">
+                            <div class="sympathy-fill" id="sympathyFill"></div>
+                        </div>
+                        <small id="sympathyText">Симпатия: 0</small>
+                    </div>
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="chat-input-container">
+                    <button class="btn-photo" onclick="requestPhoto()" title="Попросить фото">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <input type="text" id="messageInput" placeholder="Напиши сообщение..." onkeypress="handleEnter(event)">
+                    <button onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons" id="actionButtons">
+            <button class="btn-action btn-pass" onclick="swipeCard('pass')">
+                <i class="fas fa-times"></i>
+            </button>
+            <button class="btn-action btn-super" onclick="swipeCard('super')">
+                <i class="fas fa-star"></i>
+            </button>
+            <button class="btn-action btn-like" onclick="swipeCard('like')">
+                <i class="fas fa-heart"></i>
+            </button>
+        </div>
     </div>
-
-    <script src="/app.js"></script>
+    
+    <!-- Photo Modal -->
+    <div class="photo-modal" id="photoModal" onclick="closePhotoModal()">
+        <button class="close-modal"><i class="fas fa-times"></i></button>
+        <img id="photoImage" src="" alt="Photo">
+    </div>
+    
+    <script src="./app.js"></script>
 </body>
 </html>

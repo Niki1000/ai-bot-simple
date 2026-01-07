@@ -1,332 +1,265 @@
 // Telegram Web App API
 const tg = window.Telegram.WebApp;
 
-// Глобальные переменные
-let selectedCharacterId = null;
-let selectedCharacter = null;
-let currentUser = null;
+// Global state
+let girls = [];
+let currentGirlIndex = 0;
+let selectedGirl = null;
+let sympathy = 0;
+let userId = null;
 
-// Инициализация приложения
+// Initialize
 function initApp() {
-    console.log('🚀 Инициализация Web App...');
+    console.log('🚀 App started');
     
-    // Разворачиваем на весь экран
     tg.expand();
-    
-    // Настраиваем цвета
     tg.setHeaderColor('#667eea');
     tg.setBackgroundColor('#667eea');
-    
-    // Прячем основную кнопку
     tg.MainButton.hide();
     
-    // Загружаем данные
-    loadUserData();
-    loadCharacters();
-    loadProfileStats();
+    // Get user ID
+    userId = tg.initDataUnsafe?.user?.id || Math.floor(Math.random() * 1000000);
     
-    // Проверяем, запущено ли в Telegram
-    if (tg.initDataUnsafe?.user) {
-        console.log('✅ Запущено в Telegram Web App');
-        document.getElementById('userName').textContent = tg.initDataUnsafe.user.first_name || 'Пользователь';
-    } else {
-        console.log('🌐 Запущено в браузере');
-        document.getElementById('userName').textContent = 'Гость';
+    if (tg.initDataUnsafe?.user?.first_name) {
+        document.getElementById('userAvatar').innerHTML = 
+            `<span>${tg.initDataUnsafe.user.first_name[0]}</span>`;
     }
     
-    // Добавляем приветственное сообщение
-    addMessage('Привет! 👋 Я AI Dating Bot. Выбери персонажа для начала общения!', 'bot');
+    loadGirls();
 }
 
-// Загрузка данных пользователя
-async function loadUserData() {
+// Load girls from API
+async function loadGirls() {
     try {
-        const telegramId = tg.initDataUnsafe?.user?.id || 0;
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('noMore').style.display = 'none';
         
-        if (telegramId) {
-            const response = await fetch(`/api/webapp/user/${telegramId}`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    currentUser = data.user;
-                    
-                    // Обновляем UI
-                    document.getElementById('userName').textContent = currentUser.firstName || 'Пользователь';
-                    document.getElementById('userLevel').textContent = currentUser.trustLevel || 0;
-                    
-                    if (currentUser.character) {
-                        selectedCharacterId = currentUser.characterId;
-                        selectedCharacter = currentUser.character;
-                        document.getElementById('selectedCharacter').textContent = currentUser.character.name;
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки пользователя:', error);
-        showError('Не удалось загрузить данные пользователя');
-    }
-}
-
-// Загрузка персонажей
-async function loadCharacters() {
-    const charactersGrid = document.getElementById('charactersGrid');
-    charactersGrid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка персонажей...</div>';
-    
-    try {
         const response = await fetch('/api/webapp/characters');
         const data = await response.json();
         
-        if (data.success) {
-            charactersGrid.innerHTML = '';
-            
-            if (data.characters.length === 0) {
-                charactersGrid.innerHTML = '<div class="error">Нет доступных персонажей</div>';
-                return;
-            }
-            
-            data.characters.forEach(character => {
-                const isSelected = selectedCharacterId === character._id;
-                
-                const characterCard = document.createElement('div');
-                characterCard.className = `character-card ${isSelected ? 'selected' : ''}`;
-                characterCard.innerHTML = `
-                    <div class="character-avatar">
-                        ${character.avatarUrl ? 
-                          `<img src="${character.avatarUrl}" alt="${character.name}">` : 
-                          `<i class="fas fa-user"></i>`}
-                    </div>
-                    <div class="character-name">${character.name}</div>
-                    <div class="character-age">${character.age} лет</div>
-                    <div class="character-desc">${character.description}</div>
-                    <div class="character-stats">
-                        <span><i class="fas fa-heart"></i> Доверие: ${character.trustRequired}</span>
-                        <span><i class="fas fa-camera"></i> Фото: ${character.photoLimit}</span>
-                    </div>
-                `;
-                
-                characterCard.onclick = () => selectCharacter(character);
-                charactersGrid.appendChild(characterCard);
-            });
-            
-            // Показываем анимацию
-            charactersGrid.classList.add('fade-in');
+        if (data.success && data.characters.length > 0) {
+            girls = data.characters;
+            currentGirlIndex = 0;
+            renderCards();
         } else {
-            charactersGrid.innerHTML = `<div class="error">${data.error || 'Ошибка загрузки'}</div>`;
+            showNoMore();
         }
     } catch (error) {
-        console.error('Ошибка загрузки персонажей:', error);
-        charactersGrid.innerHTML = '<div class="error">Ошибка подключения к серверу</div>';
+        console.error('Error loading girls:', error);
+        tg.showAlert('Ошибка загрузки девушек');
+        showNoMore();
+    } finally {
+        document.getElementById('loading').style.display = 'none';
     }
 }
 
-// Загрузка статистики профиля
-async function loadProfileStats() {
-    const profileStats = document.getElementById('profileStats');
+// Render swipe cards
+function renderCards() {
+    const container = document.getElementById('swipeView');
     
-    try {
-        const telegramId = tg.initDataUnsafe?.user?.id || 0;
-        
-        if (telegramId) {
-            const response = await fetch(`/api/webapp/user/${telegramId}`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    const user = data.user;
-                    
-                    profileStats.innerHTML = `
-                        <div class="stat-item">
-                            <div class="stat-value">${user.trustLevel || 0}</div>
-                            <div class="stat-label">Уровень доверия</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${user.totalMessages || 0}</div>
-                            <div class="stat-label">Сообщений</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${user.photoRequests || 0}</div>
-                            <div class="stat-label">Запросов фото</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${user.characterId ? '🎭' : '—'}</div>
-                            <div class="stat-label">Персонаж</div>
-                        </div>
-                    `;
-                    return;
-                }
-            }
-        }
-        
-        // Если нет данных, показываем заглушку
-        profileStats.innerHTML = `
-            <div class="stat-item">
-                <div class="stat-value">25</div>
-                <div class="stat-label">Уровень доверия</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">15</div>
-                <div class="stat-label">Сообщений</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">3</div>
-                <div class="stat-label">Запросов фото</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">🎭</div>
-                <div class="stat-label">Персонаж</div>
-            </div>
-        `;
-        
-    } catch (error) {
-        console.error('Ошибка загрузки статистики:', error);
-        profileStats.innerHTML = '<div class="error">Ошибка загрузки статистики</div>';
-    }
-}
-
-// Выбор персонажа
-function selectCharacter(character) {
-    selectedCharacter = character;
+    // Clear old cards
+    const oldCards = container.querySelectorAll('.profile-card');
+    oldCards.forEach(card => card.remove());
     
-    // Обновляем UI
-    const characterCards = document.querySelectorAll('.character-card');
-    characterCards.forEach(card => card.classList.remove('selected'));
-    
-    event.currentTarget.classList.add('selected');
-    
-    // Показываем подтверждение
-    showCharacterModal(character);
-}
-
-// Показать модальное окно выбора персонажа
-function showCharacterModal(character) {
-    const modal = document.getElementById('characterModal');
-    const modalBody = document.getElementById('modalBody');
-    
-    modalBody.innerHTML = `
-        <div style="text-align: center; margin-bottom: 20px;">
-            <div style="width: 80px; height: 80px; border-radius: 50%; background: #667eea; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; color: white; font-size: 36px;">
-                ${character.avatarUrl ? 
-                  `<img src="${character.avatarUrl}" alt="${character.name}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` : 
-                  `<i class="fas fa-user"></i>`}
-            </div>
-            <h4 style="margin-bottom: 5px;">${character.name}, ${character.age}</h4>
-            <p style="color: #666; margin-bottom: 15px;">${character.personality}</p>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-            <p style="margin-bottom: 10px;"><strong>Описание:</strong> ${character.description}</p>
-            <p style="margin-bottom: 10px;"><strong>Приветствие:</strong> "${character.welcomeMessage}"</p>
-            <p><strong>Биография:</strong> ${character.bio}</p>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
-            <div style="text-align: center; padding: 10px; background: #e3f2fd; border-radius: 8px;">
-                <div style="font-size: 20px; color: #667eea; margin-bottom: 5px;">
-                    <i class="fas fa-heart"></i>
-                </div>
-                <div style="font-size: 12px; color: #666;">Доверие: ${character.trustRequired}</div>
-            </div>
-            <div style="text-align: center; padding: 10px; background: #e3f2fd; border-radius: 8px;">
-                <div style="font-size: 20px; color: #667eea; margin-bottom: 5px;">
-                    <i class="fas fa-camera"></i>
-                </div>
-                <div style="font-size: 12px; color: #666;">Фото: ${character.photoLimit}</div>
-            </div>
-        </div>
-    `;
-    
-    modal.classList.add('show');
-}
-
-// Закрыть модальное окно
-function closeModal() {
-    document.getElementById('characterModal').classList.remove('show');
-}
-
-// Подтвердить выбор персонажа
-async function confirmCharacter() {
-    if (!selectedCharacter) return;
-    
-    try {
-        const telegramId = tg.initDataUnsafe?.user?.id || 0;
-        
-        if (!telegramId) {
-            tg.showAlert('Ошибка: не найден ID пользователя');
-            return;
-        }
-        
-        const response = await fetch('/api/webapp/select-character', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                telegramId: telegramId,
-                characterId: selectedCharacter._id
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // Обновляем UI
-            selectedCharacterId = selectedCharacter._id;
-            document.getElementById('selectedCharacter').textContent = selectedCharacter.name;
-            
-            // Закрываем модальное окно
-            closeModal();
-            
-            // Обновляем список персонажей
-            loadCharacters();
-            loadProfileStats();
-            
-            // Показываем уведомление
-            tg.showAlert(`✅ Вы выбрали ${selectedCharacter.name}!`);
-            
-            // Добавляем сообщение в чат
-            addMessage(`Вы выбрали персонажа: ${selectedCharacter.name}. ${selectedCharacter.welcomeMessage}`, 'bot');
-        } else {
-            tg.showAlert(`❌ Ошибка: ${data.error}`);
-        }
-    } catch (error) {
-        console.error('Ошибка выбора персонажа:', error);
-        tg.showAlert('❌ Ошибка выбора персонажа');
-    }
-}
-
-// Отправка сообщения
-async function sendMessage() {
-    const messageInput = document.getElementById('messageInput');
-    const message = messageInput.value.trim();
-    
-    if (!message) return;
-    
-    // Проверяем, выбран ли персонаж
-    if (!selectedCharacterId) {
-        tg.showAlert('⚠️ Сначала выберите персонажа!');
+    if (currentGirlIndex >= girls.length) {
+        showNoMore();
         return;
     }
     
-    // Добавляем сообщение пользователя в чат
-    addMessage(message, 'user');
-    messageInput.value = '';
+    // Show next 3 cards
+    for (let i = 0; i < 3 && currentGirlIndex + i < girls.length; i++) {
+        const girl = girls[currentGirlIndex + i];
+        const card = createCard(girl, i);
+        container.appendChild(card);
+    }
+    
+    // Setup drag on top card
+    setupDrag();
+}
+
+// Create card element
+function createCard(girl, index) {
+    const card = document.createElement('div');
+    card.className = 'profile-card';
+    card.style.zIndex = 100 - index;
+    card.style.transform = `scale(${1 - index * 0.05}) translateY(${index * 10}px)`;
+    card.dataset.girlId = girl._id;
+    
+    card.innerHTML = `
+        <img src="${girl.avatarUrl || 'https://i.pravatar.cc/400'}" alt="${girl.name}" class="card-image">
+        <div class="card-overlay"></div>
+        <div class="profile-info">
+            <div class="profile-name">${girl.name}</div>
+            <div class="profile-age">${girl.age} лет</div>
+            <div class="profile-bio">${girl.description}</div>
+        </div>
+    `;
+    
+    return card;
+}
+
+// Setup drag & drop
+let startX = 0, currentX = 0, isDragging = false;
+
+function setupDrag() {
+    const card = document.querySelector('.profile-card');
+    if (!card) return;
+    
+    card.addEventListener('mousedown', dragStart);
+    card.addEventListener('touchstart', dragStart);
+    
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('touchmove', drag);
+    
+    document.addEventListener('mouseup', dragEnd);
+    document.addEventListener('touchend', dragEnd);
+}
+
+function dragStart(e) {
+    isDragging = true;
+    startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    currentX = startX;
+    
+    const card = e.currentTarget;
+    card.classList.add('dragging');
+}
+
+function drag(e) {
+    if (!isDragging) return;
+    
+    currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+    const deltaX = currentX - startX;
+    
+    const card = document.querySelector('.profile-card.dragging');
+    if (!card) return;
+    
+    const rotation = deltaX * 0.1;
+    card.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`;
+    card.style.opacity = 1 - Math.abs(deltaX) / 500;
+}
+
+function dragEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    
+    const card = document.querySelector('.profile-card.dragging');
+    if (!card) return;
+    
+    const deltaX = currentX - startX;
+    
+    if (Math.abs(deltaX) > 100) {
+        // Swipe threshold met
+        const direction = deltaX > 0 ? 'like' : 'pass';
+        card.classList.remove('dragging');
+        swipeCard(direction);
+    } else {
+        // Reset position
+        card.style.transform = '';
+        card.style.opacity = '1';
+        card.classList.remove('dragging');
+    }
+}
+
+// Swipe card (like/pass/super)
+function swipeCard(action) {
+    const card = document.querySelector('.profile-card');
+    if (!card) return;
+    
+    const girlId = card.dataset.girlId;
+    const girl = girls.find(g => g._id === girlId);
+    
+    // Animate swipe
+    if (action === 'like' || action === 'super') {
+        card.classList.add('swipe-right');
+    } else {
+        card.classList.add('swipe-left');
+    }
+    
+    setTimeout(() => {
+        card.remove();
+        currentGirlIndex++;
+        
+        if (action === 'like' || action === 'super') {
+            // Open chat with selected girl
+            selectGirl(girl);
+        } else {
+            // Load next card
+            renderCards();
+        }
+    }, 300);
+}
+
+// Select girl and open chat
+async function selectGirl(girl) {
+    selectedGirl = girl;
     
     try {
-        const telegramId = tg.initDataUnsafe?.user?.id || 0;
+        // Save selection to backend
+        await fetch('/api/webapp/select-character', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: userId,
+                characterId: girl._id
+            })
+        });
         
-        if (!telegramId) {
-            addMessage('Ошибка: не найден ID пользователя', 'bot');
-            return;
-        }
+        // Load sympathy
+        const userRes = await fetch(`/api/webapp/user/${userId}`);
+        const userData = await userRes.json();
+        sympathy = userData.user?.sympathy?.get(girl._id) || 0;
         
-        // Отправляем на сервер
+        openChat();
+    } catch (error) {
+        console.error('Error selecting girl:', error);
+        openChat();
+    }
+}
+
+// Open chat view
+function openChat() {
+    document.getElementById('swipeView').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'none';
+    document.getElementById('chatView').style.display = 'flex';
+    
+    document.getElementById('chatGirlName').textContent = selectedGirl.name;
+    updateSympathyBar();
+    
+    // Add welcome message
+    addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
+}
+
+// Back to swipe view
+function backToSwipe() {
+    document.getElementById('chatView').style.display = 'none';
+    document.getElementById('swipeView').style.display = 'flex';
+    document.getElementById('actionButtons').style.display = 'flex';
+    
+    selectedGirl = null;
+    sympathy = 0;
+    
+    // Clear chat
+    document.getElementById('chatMessages').innerHTML = '';
+    
+    renderCards();
+}
+
+// Send message
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message || !selectedGirl) return;
+    
+    addMessage(message, 'user');
+    input.value = '';
+    
+    try {
         const response = await fetch('/api/webapp/chat', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                telegramId: telegramId,
+                telegramId: userId,
                 message: message
             })
         });
@@ -334,78 +267,97 @@ async function sendMessage() {
         const data = await response.json();
         
         if (data.success) {
-            // Добавляем ответ бота
-            addMessage(data.response, 'bot');
+            sympathy++;
+            updateSympathyBar();
             
-            // Обновляем статистику
-            loadProfileStats();
-        } else {
-            addMessage(`❌ Ошибка: ${data.error}`, 'bot');
+            setTimeout(() => {
+                addMessage(data.response, 'bot');
+            }, 500);
         }
     } catch (error) {
-        console.error('Ошибка отправки сообщения:', error);
-        addMessage('❌ Ошибка подключения к серверу', 'bot');
+        console.error('Error sending message:', error);
+        addMessage('Ошибка отправки 😢', 'bot');
     }
 }
 
-// Добавление сообщения в чат
+// Add message to chat
 function addMessage(text, sender) {
-    const chatMessages = document.getElementById('chatMessages');
+    const container = document.getElementById('chatMessages');
     
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}`;
-    
-    const time = new Date().toLocaleTimeString('ru-RU', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
-    
     messageDiv.innerHTML = `
-        <div class="message-avatar">
-            <i class="fas ${sender === 'user' ? 'fa-user' : 'fa-robot'}"></i>
-        </div>
-        <div class="message-content">
-            <div class="message-text">${text}</div>
-            <div class="message-time">${time}</div>
-        </div>
+        <div class="message-bubble">${text}</div>
     `;
     
-    chatMessages.appendChild(messageDiv);
-    
-    // Прокручиваем вниз
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    
-    // Анимация
-    messageDiv.style.animation = 'fadeIn 0.3s ease';
+    container.appendChild(messageDiv);
+    container.scrollTop = container.scrollHeight;
 }
 
-// Обработка нажатия Enter
-function handleKeyPress(event) {
-    if (event.key === 'Enter') {
+// Request photo
+async function requestPhoto() {
+    if (!selectedGirl) return;
+    
+    if (sympathy < 10) {
+        tg.showAlert(`Нужно больше симпатии! (${sympathy}/10)`);
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/webapp/request-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: userId,
+                characterId: selectedGirl._id
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.photo) {
+            showPhoto(data.photo);
+            addMessage('Вот моё фото! 📸💕', 'bot');
+        } else {
+            tg.showAlert(data.message || `Попробуй позже! Шанс: ${Math.floor(sympathy)}%`);
+            addMessage(data.message || 'Пока не готова делиться фото 🙈', 'bot');
+        }
+    } catch (error) {
+        console.error('Error requesting photo:', error);
+        tg.showAlert('Ошибка запроса фото');
+    }
+}
+
+// Show photo modal
+function showPhoto(photoUrl) {
+    document.getElementById('photoImage').src = photoUrl;
+    document.getElementById('photoModal').style.display = 'flex';
+}
+
+// Close photo modal
+function closePhotoModal() {
+    document.getElementById('photoModal').style.display = 'none';
+}
+
+// Update sympathy bar
+function updateSympathyBar() {
+    const fillPercent = Math.min(100, sympathy);
+    document.getElementById('sympathyFill').style.width = `${fillPercent}%`;
+    document.getElementById('sympathyText').textContent = `Симпатия: ${sympathy}`;
+}
+
+// Show no more cards
+function showNoMore() {
+    document.getElementById('noMore').style.display = 'block';
+    document.getElementById('actionButtons').style.display = 'none';
+}
+
+// Handle enter key in chat
+function handleEnter(e) {
+    if (e.key === 'Enter') {
         sendMessage();
     }
 }
 
-// Проверка здоровья системы
-async function checkHealth() {
-    try {
-        const response = await fetch('/api/health');
-        const data = await response.json();
-        
-        if (data.status === 'OK') {
-            tg.showAlert(`✅ Система работает нормально\nВремя: ${new Date(data.timestamp).toLocaleString('ru-RU')}`);
-        } else {
-            tg.showAlert(`❌ Проблемы с системой: ${data.error}`);
-        }
-    } catch (error) {
-        tg.showAlert('❌ Ошибка проверки здоровья системы');
-    }
-}
-
-// Показать ошибку
-function showError(message) {
-    tg.showAlert(`❌ ${message}`);
-}
-
-// Запускаем приложение при загрузке страницы
+// Start app
 document.addEventListener('DOMContentLoaded', initApp);

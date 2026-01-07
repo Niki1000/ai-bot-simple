@@ -6,13 +6,13 @@ const connectDB = require('./db');
 async function seedDatabase() {
   try {
     console.log('🌱 Заполнение базы данных...');
-    
+
     await connectDB();
-    
+
     // Удаляем старые данные
     await Character.deleteMany({});
     console.log('🧹 Удалены старые персонажи');
-    
+
     // Создаём тестовых персонажей
     const characters = [
       {
@@ -25,7 +25,14 @@ async function seedDatabase() {
         bio: "Я Анна, работаю дизайнером. Люблю живопись, классическую музыку и долгие прогулки по парку.",
         trustRequired: 10,
         photoLimit: 3,
-        isActive: true
+        isActive: true,
+        // In characters array, add:
+        photos: [
+          'https://i.pravatar.cc/400?img=1',  // Photo 1
+          'https://i.pravatar.cc/400?img=12',
+          'https://i.pravatar.cc/400?img=23',
+          // Add 7 more per girl (total 10)
+        ]
       },
       {
         name: "Мария",
@@ -37,7 +44,14 @@ async function seedDatabase() {
         bio: "Я Мария, руковожу IT-компанией. Увлекаюсь технологиями, инвестициями и спортом.",
         trustRequired: 20,
         photoLimit: 2,
-        isActive: true
+        isActive: true,
+        // In characters array, add:
+        photos: [
+          'https://i.pravatar.cc/400?img=1',  // Photo 1
+          'https://i.pravatar.cc/400?img=12',
+          'https://i.pravatar.cc/400?img=23',
+          // Add 7 more per girl (total 10)
+        ]
       },
       {
         name: "София",
@@ -49,7 +63,14 @@ async function seedDatabase() {
         bio: "Я София, изучаю журналистику. Люблю путешествовать, фотографировать и знакомиться с новыми людьми.",
         trustRequired: 5,
         photoLimit: 5,
-        isActive: true
+        isActive: true,
+        // In characters array, add:
+        photos: [
+          'https://i.pravatar.cc/400?img=1',  // Photo 1
+          'https://i.pravatar.cc/400?img=12',
+          'https://i.pravatar.cc/400?img=23',
+          // Add 7 more per girl (total 10)
+        ]
       },
       {
         name: "Екатерина",
@@ -76,24 +97,24 @@ async function seedDatabase() {
         isActive: true
       }
     ];
-    
+
     // Сохраняем персонажей
     await Character.insertMany(characters);
     console.log(`✅ Добавлено ${characters.length} персонажей`);
-    
+
     // Выводим список
     const savedCharacters = await Character.find();
     console.log('\n📋 Список персонажей:');
     savedCharacters.forEach((char, index) => {
       console.log(`${index + 1}. ${char.name}, ${char.age} лет - ${char.description}`);
     });
-    
+
     console.log('\n🎉 База данных успешно заполнена!');
-    
+
     // Закрываем соединение
     await mongoose.disconnect();
     console.log('🔌 Соединение с MongoDB закрыто');
-    
+
   } catch (error) {
     console.error('❌ Ошибка при заполнении базы данных:', error);
     process.exit(1);

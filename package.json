@@ -4,9 +4,8 @@
   "description": "Telegram AI Dating Bot with Web App",
   "main": "api/index.js",
   "scripts": {
-    "dev": "node src/seed.js && node src/db.js",
+    "dev": "nodemon api/index.js",
     "seed": "node src/seed.js",
-    "test": "echo \"No tests yet\" && exit 0",
     "start": "node api/index.js"
   },
   "dependencies": {

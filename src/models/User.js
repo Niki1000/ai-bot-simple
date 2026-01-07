@@ -34,7 +34,14 @@ const UserSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  selectedGirl: String,  // Current girl name
+  sympathy: {  // {girlId: score}
+    type: Map, of: Number, default: {}
+  },
+  unlockedPhotos: {  // {girlId: [photoUrls]}
+    type: Map, of: [String], default: {}
+  },
 });
 
 module.exports = mongoose.model('User', UserSchema);
