@@ -33,6 +33,7 @@ async function loadGirls() {
     try {
         document.getElementById('loading').style.display = 'block';
         document.getElementById('noMore').style.display = 'none';
+        document.getElementById('actionButtons').style.display = 'flex'; // ✅ FIX: Show buttons
         
         const response = await fetch('/api/webapp/characters');
         const data = await response.json();
