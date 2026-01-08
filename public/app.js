@@ -28,33 +28,50 @@ function initApp() {
     loadGirls();
 }
 
-// Load girls from backend
+//Load girls
 async function loadGirls() {
     try {
+        console.log('🔍 Loading girls...');
+
         const response = await fetch('/api/webapp/characters');
-        const text = await response.text();
-        
-        console.log('Raw response:', text);
-        
-        const data = JSON.parse(text);
-        
-        if (data.success && data.characters) {
-            girls = data.characters;
-            console.log('✅ Loaded girls:', girls.length);
-            renderCards();
+        const data = await response.json();
+
+        console.log('📦 Response:', data);
+
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to load');
+        }
+
+        girls = data.characters || [];
+        console.log(`✅ Loaded ${girls.length} girls`);
+
+        if (girls.length === 0) {
+            document.getElementById('cardStack').innerHTML = `
+                <div style="color: white; text-align: center; padding: 40px;">
+                    <h3>😢 Нет девушек</h3>
+                    <p>Проверьте базу данных</p>
+                </div>
+            `;
         } else {
-            console.error('❌ Invalid data structure:', data);
+            renderCards();
         }
     } catch (error) {
-        console.error('❌ Error loading girls:', error);
-        document.getElementById('cardStack').innerHTML = `
-            <div style="color: white; text-align: center; padding: 40px;">
-                <h3>Ошибка загрузки 😢</h3>
-                <p>Попробуйте перезагрузить страницу</p>
-            </div>
-        `;
+        console.error('❌ Load error:', error);
+        const stack = document.getElementById('cardStack');
+        if (stack) {
+            stack.innerHTML = `
+                <div style="color: white; text-align: center; padding: 40px;">
+                    <h3>❌ Ошибка</h3>
+                    <p>${error.message}</p>
+                    <button onclick="location.reload()" style="background: #f093fb; border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 20px; cursor: pointer;">
+                        Перезагрузить
+                    </button>
+                </div>
+            `;
+        }
     }
 }
+
 
 
 // Render swipe cards
