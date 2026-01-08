@@ -11,20 +11,20 @@ let userId = null;
 // Initialize
 function initApp() {
     console.log('🚀 App started');
-    
+
     tg.expand();
     tg.setHeaderColor('#667eea');
     tg.setBackgroundColor('#667eea');
     tg.MainButton.hide();
-    
+
     // Get user ID
     userId = tg.initDataUnsafe?.user?.id || Math.floor(Math.random() * 1000000);
-    
+
     if (tg.initDataUnsafe?.user?.first_name) {
-        document.getElementById('userAvatar').innerHTML = 
+        document.getElementById('userAvatar').innerHTML =
             `<span>${tg.initDataUnsafe.user.first_name[0]}</span>`;
     }
-    
+
     loadGirls();
 }
 
@@ -34,10 +34,10 @@ async function loadGirls() {
         document.getElementById('loading').style.display = 'block';
         document.getElementById('noMore').style.display = 'none';
         document.getElementById('actionButtons').style.display = 'flex'; // ✅ FIX: Show buttons
-        
+
         const response = await fetch('/api/webapp/characters');
         const data = await response.json();
-        
+
         if (data.success && data.characters.length > 0) {
             girls = data.characters;
             currentGirlIndex = 0;
@@ -57,23 +57,23 @@ async function loadGirls() {
 // Render swipe cards
 function renderCards() {
     const container = document.getElementById('swipeView');
-    
+
     // Clear old cards
     const oldCards = container.querySelectorAll('.profile-card');
     oldCards.forEach(card => card.remove());
-    
+
     if (currentGirlIndex >= girls.length) {
         showNoMore();
         return;
     }
-    
+
     // Show next 3 cards
     for (let i = 0; i < 3 && currentGirlIndex + i < girls.length; i++) {
         const girl = girls[currentGirlIndex + i];
         const card = createCard(girl, i);
         container.appendChild(card);
     }
-    
+
     // Setup drag on top card
     setupDrag();
 }
@@ -85,7 +85,7 @@ function createCard(girl, index) {
     card.style.zIndex = 100 - index;
     card.style.transform = `scale(${1 - index * 0.05}) translateY(${index * 10}px)`;
     card.dataset.girlId = girl._id;
-    
+
     card.innerHTML = `
         <img src="${girl.avatarUrl || 'https://i.pravatar.cc/400'}" alt="${girl.name}" class="card-image">
         <div class="card-overlay"></div>
@@ -95,7 +95,7 @@ function createCard(girl, index) {
             <div class="profile-bio">${girl.description}</div>
         </div>
     `;
-    
+
     return card;
 }
 
@@ -105,13 +105,13 @@ let startX = 0, currentX = 0, isDragging = false;
 function setupDrag() {
     const card = document.querySelector('.profile-card');
     if (!card) return;
-    
+
     card.addEventListener('mousedown', dragStart);
     card.addEventListener('touchstart', dragStart);
-    
+
     document.addEventListener('mousemove', drag);
     document.addEventListener('touchmove', drag);
-    
+
     document.addEventListener('mouseup', dragEnd);
     document.addEventListener('touchend', dragEnd);
 }
@@ -120,20 +120,20 @@ function dragStart(e) {
     isDragging = true;
     startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     currentX = startX;
-    
+
     const card = e.currentTarget;
     card.classList.add('dragging');
 }
 
 function drag(e) {
     if (!isDragging) return;
-    
+
     currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     const deltaX = currentX - startX;
-    
+
     const card = document.querySelector('.profile-card.dragging');
     if (!card) return;
-    
+
     const rotation = deltaX * 0.1;
     card.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`;
     card.style.opacity = 1 - Math.abs(deltaX) / 500;
@@ -142,12 +142,12 @@ function drag(e) {
 function dragEnd() {
     if (!isDragging) return;
     isDragging = false;
-    
+
     const card = document.querySelector('.profile-card.dragging');
     if (!card) return;
-    
+
     const deltaX = currentX - startX;
-    
+
     if (Math.abs(deltaX) > 100) {
         // Swipe threshold met
         const direction = deltaX > 0 ? 'like' : 'pass';
@@ -165,21 +165,21 @@ function dragEnd() {
 function swipeCard(action) {
     const card = document.querySelector('.profile-card');
     if (!card) return;
-    
+
     const girlId = card.dataset.girlId;
     const girl = girls.find(g => g._id === girlId);
-    
+
     // Animate swipe
     if (action === 'like' || action === 'super') {
         card.classList.add('swipe-right');
     } else {
         card.classList.add('swipe-left');
     }
-    
+
     setTimeout(() => {
         card.remove();
         currentGirlIndex++;
-        
+
         if (action === 'like' || action === 'super') {
             // Open chat with selected girl
             selectGirl(girl);
@@ -193,7 +193,7 @@ function swipeCard(action) {
 // Select girl and open chat
 async function selectGirl(girl) {
     selectedGirl = girl;
-    
+
     try {
         // Save selection to backend
         await fetch('/api/webapp/select-character', {
@@ -204,12 +204,12 @@ async function selectGirl(girl) {
                 characterId: girl._id
             })
         });
-        
+
         // Load sympathy
         const userRes = await fetch(`/api/webapp/user/${userId}`);
         const userData = await userRes.json();
         sympathy = userData.user?.sympathy?.get(girl._id) || 0;
-        
+
         openChat();
     } catch (error) {
         console.error('Error selecting girl:', error);
@@ -222,10 +222,10 @@ function openChat() {
     document.getElementById('swipeView').style.display = 'none';
     document.getElementById('actionButtons').style.display = 'none';
     document.getElementById('chatView').style.display = 'flex';
-    
+
     document.getElementById('chatGirlName').textContent = selectedGirl.name;
     updateSympathyBar();
-    
+
     // Add welcome message
     addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
 }
@@ -235,13 +235,13 @@ function backToSwipe() {
     document.getElementById('chatView').style.display = 'none';
     document.getElementById('swipeView').style.display = 'flex';
     document.getElementById('actionButtons').style.display = 'flex';
-    
+
     selectedGirl = null;
     sympathy = 0;
-    
+
     // Clear chat
     document.getElementById('chatMessages').innerHTML = '';
-    
+
     renderCards();
 }
 
@@ -249,12 +249,12 @@ function backToSwipe() {
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
-    
+
     if (!message || !selectedGirl) return;
-    
+
     addMessage(message, 'user');
     input.value = '';
-    
+
     try {
         const response = await fetch('/api/webapp/chat', {
             method: 'POST',
@@ -264,13 +264,13 @@ async function sendMessage() {
                 message: message
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             sympathy++;
             updateSympathyBar();
-            
+
             setTimeout(() => {
                 addMessage(data.response, 'bot');
             }, 500);
@@ -284,13 +284,13 @@ async function sendMessage() {
 // Add message to chat
 function addMessage(text, sender) {
     const container = document.getElementById('chatMessages');
-    
+
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}`;
     messageDiv.innerHTML = `
         <div class="message-bubble">${text}</div>
     `;
-    
+
     container.appendChild(messageDiv);
     container.scrollTop = container.scrollHeight;
 }
@@ -298,12 +298,12 @@ function addMessage(text, sender) {
 // Request photo
 async function requestPhoto() {
     if (!selectedGirl) return;
-    
+
     if (sympathy < 10) {
         tg.showAlert(`Нужно больше симпатии! (${sympathy}/10)`);
         return;
     }
-    
+
     try {
         const response = await fetch('/api/webapp/request-photo', {
             method: 'POST',
@@ -313,9 +313,9 @@ async function requestPhoto() {
                 characterId: selectedGirl._id
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success && data.photo) {
             showPhoto(data.photo);
             addMessage('Вот моё фото! 📸💕', 'bot');
@@ -359,6 +359,125 @@ function handleEnter(e) {
         sendMessage();
     }
 }
+// Navigate to matches view
+function showMatches() {
+    document.getElementById('swipeView').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'none';
+    document.getElementById('chatView').style.display = 'none';
+    document.getElementById('matchesView').style.display = 'flex';
+
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.nav-item')[1].classList.add('active');
+
+    loadMatches();
+}
+
+// Navigate back to swipe
+function showSwipe() {
+    document.getElementById('swipeView').style.display = 'flex';
+    document.getElementById('actionButtons').style.display = 'flex';
+    document.getElementById('chatView').style.display = 'none';
+    document.getElementById('matchesView').style.display = 'none';
+
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.nav-item')[0].classList.add('active');
+}
+
+// Load matches from backend
+async function loadMatches() {
+    try {
+        document.getElementById('matchesLoading').style.display = 'block';
+        document.getElementById('noMatches').style.display = 'none';
+
+        // Get user data to find matches
+        const userRes = await fetch(`/api/webapp/user/${userId}`);
+        const userData = await userRes.json();
+
+        // Get all characters
+        const charsRes = await fetch('/api/webapp/characters');
+        const charsData = await charsRes.json();
+
+        const matchesList = document.getElementById('matchesList');
+
+        // Filter girls user has liked (matched with)
+        const matches = girls.filter((girl, index) => index < currentGirlIndex);
+
+        if (matches.length === 0) {
+            document.getElementById('noMatches').style.display = 'block';
+            document.getElementById('matchesLoading').style.display = 'none';
+            return;
+        }
+
+        // Clear and render matches
+        const existingCards = matchesList.querySelectorAll('.match-card');
+        existingCards.forEach(card => card.remove());
+
+        matches.forEach(girl => {
+            const sympathy = userData.user?.totalMessages || Math.floor(Math.random() * 50 + 10);
+            const lastMessage = girl.welcomeMessage || 'Привет! 💕';
+
+            const card = document.createElement('div');
+            card.className = 'match-card';
+            card.onclick = () => selectGirlFromMatches(girl);
+
+            card.innerHTML = `
+                <div class="match-avatar" style="background-image: url('${girl.avatarUrl}')"></div>
+                <div class="match-info">
+                    <div class="match-name">${girl.name}</div>
+                    <div class="match-age">${girl.age} лет</div>
+                    <div class="match-preview">${lastMessage}</div>
+                </div>
+                <div class="match-meta">
+                    <div class="match-time">Сейчас</div>
+                    <div class="match-sympathy">
+                        <i class="fas fa-heart"></i>
+                        <span>${sympathy}</span>
+                    </div>
+                </div>
+            `;
+
+            matchesList.appendChild(card);
+        });
+
+        document.getElementById('matchesLoading').style.display = 'none';
+
+    } catch (error) {
+        console.error('Error loading matches:', error);
+        document.getElementById('noMatches').style.display = 'block';
+        document.getElementById('matchesLoading').style.display = 'none';
+    }
+}
+
+// Open chat from matches
+async function selectGirlFromMatches(girl) {
+    selectedGirl = girl;
+
+    try {
+        await fetch('/api/webapp/select-character', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: userId,
+                characterId: girl._id
+            })
+        });
+
+        const userRes = await fetch(`/api/webapp/user/${userId}`);
+        const userData = await userRes.json();
+        sympathy = userData.user?.totalMessages || 0;
+
+        // Hide matches, show chat
+        document.getElementById('matchesView').style.display = 'none';
+        openChat();
+
+    } catch (error) {
+        console.error('Error:', error);
+        openChat();
+    }
+}
+
 
 // Start app
 document.addEventListener('DOMContentLoaded', initApp);
