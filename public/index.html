@@ -324,7 +324,7 @@
             background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
         }
 
-        /* Bottom Nav - Responsive */
+        /* Bottom Nav - Always visible */
         .bottom-nav {
             display: flex;
             justify-content: space-around;
@@ -335,13 +335,14 @@
             flex-shrink: 0;
             padding-bottom: max(clamp(10px, 2vh, 12px), env(safe-area-inset-bottom));
             position: fixed;
-            /* Always on top */
             bottom: 0;
             left: 0;
             right: 0;
-            z-index: 300;
-            /* Above everything */
+            z-index: 9999;
+            /* MAX Z-INDEX */
+            width: 100%;
         }
+
 
         .nav-item {
             display: flex;
@@ -437,15 +438,14 @@
         .chat-view {
             display: none;
             flex-direction: column;
-            height: 100%;
+            height: calc(100% - 70px);
+            /* Account for bottom nav */
             width: 100%;
             position: absolute;
             top: 0;
             left: 0;
             z-index: 200;
             background: linear-gradient(135deg, #1a0b2e 0%, #16213e 50%, #0f0f1e 100%);
-            padding-bottom: 70px;
-            /* Space for bottom nav */
         }
 
         /* Chat Header */
@@ -714,15 +714,14 @@
         .matches-view {
             display: none;
             flex-direction: column;
-            height: 100%;
+            height: calc(100% - 70px);
+            /* Account for bottom nav */
             width: 100%;
             position: absolute;
             top: 0;
             left: 0;
             z-index: 150;
             background: linear-gradient(135deg, #1a0b2e 0%, #16213e 50%, #0f0f1e 100%);
-            padding-bottom: 70px;
-            /* Space for bottom nav */
         }
 
         /* Matches Header */

@@ -280,8 +280,7 @@ function backToSwipe() {
     renderCards();
 }
 
-// Send message
-// Send message - UPDATE to save to DB
+// Send message - FIXED with sympathy update
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
@@ -292,8 +291,8 @@ async function sendMessage() {
     input.value = '';
 
     try {
-        // Save user message
-        await fetch('/api/webapp/save-message', {
+        // Save user message and get updated sympathy
+        const saveRes = await fetch('/api/webapp/save-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -303,6 +302,13 @@ async function sendMessage() {
                 sender: 'user'
             })
         });
+
+        const saveData = await saveRes.json();
+
+        if (saveData.success && saveData.sympathy !== undefined) {
+            sympathy = saveData.sympathy;
+            updateSympathyBar();
+        }
 
         // Get AI response
         const response = await fetch('/api/webapp/chat', {
@@ -317,9 +323,6 @@ async function sendMessage() {
         const data = await response.json();
 
         if (data.success) {
-            sympathy++;
-            updateSympathyBar();
-
             setTimeout(async () => {
                 addMessage(data.response, 'bot');
 
@@ -341,6 +344,7 @@ async function sendMessage() {
         addMessage('Ошибка отправки 😢', 'bot');
     }
 }
+
 
 
 // Add message to chat
@@ -449,30 +453,35 @@ function showSwipe() {
 
 
 // Load matches from backend - FIXED
+// Load matches - WITH DEBUG LOGGING
 async function loadMatches() {
     try {
+        console.log('🔍 Loading matches for user:', userId);
+
         document.getElementById('matchesLoading').style.display = 'block';
         document.getElementById('noMatches').style.display = 'none';
 
-        // Get real matches from backend
         const matchesRes = await fetch(`/api/webapp/matches/${userId}`);
         const matchesData = await matchesRes.json();
+
+        console.log('📦 Matches response:', matchesData);
 
         const matchesList = document.getElementById('matchesList');
 
         if (!matchesData.success || matchesData.matches.length === 0) {
+            console.log('❌ No matches to display');
             document.getElementById('noMatches').style.display = 'block';
             document.getElementById('matchesLoading').style.display = 'none';
             return;
         }
 
-        // Clear and render matches
         const existingCards = matchesList.querySelectorAll('.match-card');
         existingCards.forEach(card => card.remove());
 
-        // Get user sympathy data
         const userRes = await fetch(`/api/webapp/user/${userId}`);
         const userData = await userRes.json();
+
+        console.log('👤 User data:', userData);
 
         matchesData.matches.forEach(girl => {
             const sympathy = userData.user?.sympathy?.[girl._id] || 0;
@@ -501,14 +510,16 @@ async function loadMatches() {
             matchesList.appendChild(card);
         });
 
+        console.log(`✅ Rendered ${matchesData.matches.length} match cards`);
         document.getElementById('matchesLoading').style.display = 'none';
 
     } catch (error) {
-        console.error('Error loading matches:', error);
+        console.error('❌ Error loading matches:', error);
         document.getElementById('noMatches').style.display = 'block';
         document.getElementById('matchesLoading').style.display = 'none';
     }
 }
+
 
 
 // Open chat from matches
