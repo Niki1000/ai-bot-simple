@@ -334,6 +334,13 @@
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             flex-shrink: 0;
             padding-bottom: max(clamp(10px, 2vh, 12px), env(safe-area-inset-bottom));
+            position: fixed;
+            /* Always on top */
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 300;
+            /* Above everything */
         }
 
         .nav-item {
@@ -437,6 +444,8 @@
             left: 0;
             z-index: 200;
             background: linear-gradient(135deg, #1a0b2e 0%, #16213e 50%, #0f0f1e 100%);
+            padding-bottom: 70px;
+            /* Space for bottom nav */
         }
 
         /* Chat Header */
@@ -712,6 +721,8 @@
             left: 0;
             z-index: 150;
             background: linear-gradient(135deg, #1a0b2e 0%, #16213e 50%, #0f0f1e 100%);
+            padding-bottom: 70px;
+            /* Space for bottom nav */
         }
 
         /* Matches Header */

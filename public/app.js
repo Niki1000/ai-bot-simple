@@ -161,7 +161,7 @@ function dragEnd() {
     }
 }
 
-// Swipe card (like/pass/super)
+// Swipe card (like/pass) - FIXED
 function swipeCard(action) {
     const card = document.querySelector('.profile-card');
     if (!card) return;
@@ -170,17 +170,28 @@ function swipeCard(action) {
     const girl = girls.find(g => g._id === girlId);
 
     // Animate swipe
-    if (action === 'like' || action === 'super') {
+    if (action === 'like') {
         card.classList.add('swipe-right');
     } else {
         card.classList.add('swipe-left');
     }
 
+    // Save to backend
+    fetch('/api/webapp/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            telegramId: userId,
+            characterId: girlId,
+            action: action
+        })
+    }).catch(err => console.error('Match save error:', err));
+
     setTimeout(() => {
         card.remove();
         currentGirlIndex++;
 
-        if (action === 'like' || action === 'super') {
+        if (action === 'like') {
             // Open chat with selected girl
             selectGirl(girl);
         } else {
@@ -189,6 +200,7 @@ function swipeCard(action) {
         }
     }, 300);
 }
+
 
 // Select girl and open chat
 async function selectGirl(girl) {
@@ -217,18 +229,41 @@ async function selectGirl(girl) {
     }
 }
 
-// Open chat view
-function openChat() {
+// Open chat - Load history
+async function openChat() {
     document.getElementById('swipeView').style.display = 'none';
     document.getElementById('actionButtons').style.display = 'none';
+    document.getElementById('matchesView').style.display = 'none';
     document.getElementById('chatView').style.display = 'flex';
 
     document.getElementById('chatGirlName').textContent = selectedGirl.name;
-    updateSympathyBar();
+    document.getElementById('chatGirlAvatar').style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
 
-    // Add welcome message
-    addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
+    // Load chat history
+    try {
+        const historyRes = await fetch(`/api/webapp/chat-history/${userId}/${selectedGirl._id}`);
+        const historyData = await historyRes.json();
+
+        sympathy = historyData.sympathy || 0;
+        updateSympathyBar();
+
+        // Clear messages
+        document.getElementById('chatMessages').innerHTML = '';
+
+        if (historyData.history && historyData.history.length > 0) {
+            historyData.history.forEach(msg => {
+                addMessage(msg.message, msg.sender);
+            });
+        } else {
+            // Add welcome message
+            addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
+        }
+    } catch (error) {
+        console.error('Error loading history:', error);
+        addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
+    }
 }
+
 
 // Back to swipe view
 function backToSwipe() {
@@ -246,6 +281,7 @@ function backToSwipe() {
 }
 
 // Send message
+// Send message - UPDATE to save to DB
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
@@ -256,6 +292,19 @@ async function sendMessage() {
     input.value = '';
 
     try {
+        // Save user message
+        await fetch('/api/webapp/save-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: userId,
+                characterId: selectedGirl._id,
+                message: message,
+                sender: 'user'
+            })
+        });
+
+        // Get AI response
         const response = await fetch('/api/webapp/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -271,8 +320,20 @@ async function sendMessage() {
             sympathy++;
             updateSympathyBar();
 
-            setTimeout(() => {
+            setTimeout(async () => {
                 addMessage(data.response, 'bot');
+
+                // Save bot message
+                await fetch('/api/webapp/save-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegramId: userId,
+                        characterId: selectedGirl._id,
+                        message: data.response,
+                        sender: 'bot'
+                    })
+                });
             }, 500);
         }
     } catch (error) {
@@ -280,6 +341,7 @@ async function sendMessage() {
         addMessage('Ошибка отправки 😢', 'bot');
     }
 }
+
 
 // Add message to chat
 function addMessage(text, sender) {
@@ -385,26 +447,20 @@ function showSwipe() {
     document.querySelectorAll('.nav-item')[0].classList.add('active');
 }
 
-// Load matches from backend
+
+// Load matches from backend - FIXED
 async function loadMatches() {
     try {
         document.getElementById('matchesLoading').style.display = 'block';
         document.getElementById('noMatches').style.display = 'none';
 
-        // Get user data to find matches
-        const userRes = await fetch(`/api/webapp/user/${userId}`);
-        const userData = await userRes.json();
-
-        // Get all characters
-        const charsRes = await fetch('/api/webapp/characters');
-        const charsData = await charsRes.json();
+        // Get real matches from backend
+        const matchesRes = await fetch(`/api/webapp/matches/${userId}`);
+        const matchesData = await matchesRes.json();
 
         const matchesList = document.getElementById('matchesList');
 
-        // Filter girls user has liked (matched with)
-        const matches = girls.filter((girl, index) => index < currentGirlIndex);
-
-        if (matches.length === 0) {
+        if (!matchesData.success || matchesData.matches.length === 0) {
             document.getElementById('noMatches').style.display = 'block';
             document.getElementById('matchesLoading').style.display = 'none';
             return;
@@ -414,8 +470,12 @@ async function loadMatches() {
         const existingCards = matchesList.querySelectorAll('.match-card');
         existingCards.forEach(card => card.remove());
 
-        matches.forEach(girl => {
-            const sympathy = userData.user?.totalMessages || Math.floor(Math.random() * 50 + 10);
+        // Get user sympathy data
+        const userRes = await fetch(`/api/webapp/user/${userId}`);
+        const userData = await userRes.json();
+
+        matchesData.matches.forEach(girl => {
+            const sympathy = userData.user?.sympathy?.[girl._id] || 0;
             const lastMessage = girl.welcomeMessage || 'Привет! 💕';
 
             const card = document.createElement('div');
@@ -449,6 +509,7 @@ async function loadMatches() {
         document.getElementById('matchesLoading').style.display = 'none';
     }
 }
+
 
 // Open chat from matches
 async function selectGirlFromMatches(girl) {
