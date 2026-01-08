@@ -28,31 +28,34 @@ function initApp() {
     loadGirls();
 }
 
-// Load girls from API
+// Load girls from backend
 async function loadGirls() {
     try {
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('noMore').style.display = 'none';
-        document.getElementById('actionButtons').style.display = 'flex'; // ✅ FIX: Show buttons
-
         const response = await fetch('/api/webapp/characters');
-        const data = await response.json();
-
-        if (data.success && data.characters.length > 0) {
+        const text = await response.text();
+        
+        console.log('Raw response:', text);
+        
+        const data = JSON.parse(text);
+        
+        if (data.success && data.characters) {
             girls = data.characters;
-            currentGirlIndex = 0;
+            console.log('✅ Loaded girls:', girls.length);
             renderCards();
         } else {
-            showNoMore();
+            console.error('❌ Invalid data structure:', data);
         }
     } catch (error) {
-        console.error('Error loading girls:', error);
-        tg.showAlert('Ошибка загрузки девушек');
-        showNoMore();
-    } finally {
-        document.getElementById('loading').style.display = 'none';
+        console.error('❌ Error loading girls:', error);
+        document.getElementById('cardStack').innerHTML = `
+            <div style="color: white; text-align: center; padding: 40px;">
+                <h3>Ошибка загрузки 😢</h3>
+                <p>Попробуйте перезагрузить страницу</p>
+            </div>
+        `;
     }
 }
+
 
 // Render swipe cards
 function renderCards() {
