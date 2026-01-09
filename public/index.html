@@ -941,10 +941,14 @@
                     <i class="fas fa-spinner fa-spin"></i><br><br>
                     Загрузка девушек...
                 </div>
-                <div class="no-more" id="noMore">
-                    <i class="fas fa-heart-broken"></i><br><br>
-                    Девушки закончились!<br>
-                    <button onclick="loadGirls()">Обновить</button>
+                <div class="no-more-cards" id="noMoreCards" style="display: none;">
+                    <i class="fas fa-heart-broken"></i>
+                    <h3>Девушки закончились!</h3>
+                    <p>Вы посмотрели всех доступных девушек</p>
+                    <button onclick="resetCards()"
+                        style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; padding: 15px 30px; border-radius: 25px; color: white; font-size: 16px; font-weight: 600; margin-top: 20px; cursor: pointer;">
+                        <i class="fas fa-redo"></i> Начать заново
+                    </button>
                 </div>
             </div>
 

@@ -57,7 +57,7 @@ app.get('/api/webapp/user/:telegramId', async (req, res) => {
     await connectDB();
     let user = await User.findOne({ telegramId: parseInt(req.params.telegramId) });
     if (!user) {
-      user = new User({ 
+      user = new User({
         telegramId: parseInt(req.params.telegramId),
         likes: [],
         passes: [],
@@ -118,9 +118,9 @@ app.get('/api/webapp/matches/:telegramId', async (req, res) => {
     if (!user || !user.likes || user.likes.length === 0) {
       return res.json({ success: true, matches: [] });
     }
-    const matches = await Character.find({ 
+    const matches = await Character.find({
       _id: { $in: user.likes },
-      isActive: true 
+      isActive: true
     });
     console.log(`✅ Found ${matches.length} matches`);
     res.json({ success: true, matches });
@@ -137,7 +137,7 @@ app.post('/api/webapp/save-message', async (req, res) => {
     const { telegramId, characterId, message, sender } = req.body;
     let user = await User.findOne({ telegramId: parseInt(telegramId) });
     if (!user) {
-      user = new User({ 
+      user = new User({
         telegramId: parseInt(telegramId),
         sympathy: {},
         chatHistory: {},
@@ -147,13 +147,13 @@ app.post('/api/webapp/save-message', async (req, res) => {
     if (!user.chatHistory) user.chatHistory = {};
     if (!user.sympathy) user.sympathy = {};
     if (!user.chatHistory[characterId]) user.chatHistory[characterId] = [];
-    
+
     user.chatHistory[characterId].push({
       message,
       sender,
       timestamp: new Date()
     });
-    
+
     if (sender === 'user') {
       user.sympathy[characterId] = (user.sympathy[characterId] || 0) + 1;
       user.totalMessages = (user.totalMessages || 0) + 1;
@@ -193,7 +193,7 @@ app.post('/api/webapp/chat', async (req, res) => {
     if (!char) {
       return res.json({ success: false, error: 'Character not found' });
     }
-    
+
     const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -209,7 +209,7 @@ app.post('/api/webapp/chat', async (req, res) => {
         temperature: 0.8
       })
     });
-    
+
     const data = await deepseekRes.json();
     const response = data.choices?.[0]?.message?.content || 'Хм... 🤔';
     res.json({ success: true, response });
@@ -219,6 +219,16 @@ app.post('/api/webapp/chat', async (req, res) => {
   }
 });
 
-
+// Telegram webhook - ADD THIS
+app.post('/api/webhook', async (req, res) => {
+  try {
+    const { handleUpdate } = require('./bot');
+    await handleUpdate(req.body);
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('❌ Webhook error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
 
 module.exports = app;

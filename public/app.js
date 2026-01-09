@@ -2,32 +2,36 @@
 const tg = window.Telegram.WebApp;
 
 // Global state
+// Get user ID from Telegram WebApp - FIXED
+let userId;
 let girls = [];
 let currentGirlIndex = 0;
 let selectedGirl = null;
 let sympathy = 0;
-let userId = null;
 
 // Initialize
-function initApp() {
-    console.log('🚀 App started');
+async function initApp() {
+    // Get Telegram user ID
+    if (window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        userId = tg.initDataUnsafe?.user?.id || 675257; // Fallback for testing
 
-    tg.expand();
-    tg.setHeaderColor('#667eea');
-    tg.setBackgroundColor('#667eea');
-    tg.MainButton.hide();
-
-    // Get user ID
-    userId = tg.initDataUnsafe?.user?.id || Math.floor(Math.random() * 1000000);
-
-    if (tg.initDataUnsafe?.user?.first_name) {
-        document.getElementById('userAvatar').innerHTML =
-            `<span>${tg.initDataUnsafe.user.first_name[0]}</span>`;
+        // Save to localStorage
+        localStorage.setItem('telegramUserId', userId);
+    } else {
+        // Get from localStorage or use test ID
+        userId = localStorage.getItem('telegramUserId') || 675257;
     }
 
-    loadGirls();
+    console.log('👤 User ID:', userId);
+
+    await loadGirls();
 }
 
+// Call init on page load
+initApp();
 //Load girls
 async function loadGirls() {
     try {
@@ -568,6 +572,13 @@ async function selectGirlFromMatches(girl) {
         console.error('Error:', error);
         openChat();
     }
+}
+// Reset and reload cards
+function resetCards() {
+    currentGirlIndex = 0;
+    const stack = document.getElementById('cardStack');
+    stack.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><br><br>Загрузка девушек...</div>';
+    loadGirls();
 }
 
 
