@@ -219,9 +219,6 @@ app.post('/api/webapp/chat', async (req, res) => {
   }
 });
 
-// Catch all
-app.get('*', (req, res) => {
-  res.sendFile('index.html', { root: 'public' });
-});
+
 
 module.exports = app;
