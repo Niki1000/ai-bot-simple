@@ -32,6 +32,16 @@ async function initApp() {
 
 // Call init on page load
 initApp();
+
+// Debug logging
+window.addEventListener('load', () => {
+    console.log('🔍 DEBUG INFO:');
+    console.log('User ID:', userId);
+    console.log('LocalStorage userId:', localStorage.getItem('telegramUserId'));
+    console.log('Telegram WebApp:', window.Telegram?.WebApp?.initDataUnsafe);
+});
+
+
 //Load girls
 async function loadGirls() {
     try {
@@ -253,7 +263,7 @@ async function selectGirl(girl) {
     }
 }
 
-// Open chat - Load history
+// Open chat - FIXED history loading
 async function openChat() {
     document.getElementById('swipeView').style.display = 'none';
     document.getElementById('actionButtons').style.display = 'none';
@@ -263,30 +273,43 @@ async function openChat() {
     document.getElementById('chatGirlName').textContent = selectedGirl.name;
     document.getElementById('chatGirlAvatar').style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
 
-    // Load chat history
+    // Clear existing messages
+    const messagesContainer = document.getElementById('chatMessages');
+    messagesContainer.innerHTML = '';
+
     try {
+        // Load chat history from DB
         const historyRes = await fetch(`/api/webapp/chat-history/${userId}/${selectedGirl._id}`);
         const historyData = await historyRes.json();
+
+        console.log('📜 Loaded history:', historyData);
 
         sympathy = historyData.sympathy || 0;
         updateSympathyBar();
 
-        // Clear messages
-        document.getElementById('chatMessages').innerHTML = '';
-
-        if (historyData.history && historyData.history.length > 0) {
+        if (historyData.success && historyData.history && historyData.history.length > 0) {
+            // Add all messages from history
             historyData.history.forEach(msg => {
                 addMessage(msg.message, msg.sender);
             });
+
+            console.log(`✅ Loaded ${historyData.history.length} messages`);
         } else {
-            // Add welcome message
+            // No history - show welcome message
             addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
         }
+
+        // Scroll to bottom
+        setTimeout(() => {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+
     } catch (error) {
-        console.error('Error loading history:', error);
+        console.error('❌ Error loading history:', error);
         addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
     }
 }
+
 
 
 // Back to swipe view
@@ -304,19 +327,20 @@ function backToSwipe() {
     renderCards();
 }
 
-// Send message - FIXED with sympathy update
+// Send message - FIXED to save both messages
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
 
     if (!message || !selectedGirl) return;
 
+    // Add user message to UI
     addMessage(message, 'user');
     input.value = '';
 
     try {
-        // Save user message and get updated sympathy
-        const saveRes = await fetch('/api/webapp/save-message', {
+        // 1. Save user message to DB
+        const saveUserRes = await fetch('/api/webapp/save-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -327,15 +351,15 @@ async function sendMessage() {
             })
         });
 
-        const saveData = await saveRes.json();
+        const saveUserData = await saveUserRes.json();
 
-        if (saveData.success && saveData.sympathy !== undefined) {
-            sympathy = saveData.sympathy;
+        if (saveUserData.success && saveUserData.sympathy !== undefined) {
+            sympathy = saveUserData.sympathy;
             updateSympathyBar();
         }
 
-        // Get AI response
-        const response = await fetch('/api/webapp/chat', {
+        // 2. Get AI response
+        const chatRes = await fetch('/api/webapp/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -344,27 +368,32 @@ async function sendMessage() {
             })
         });
 
-        const data = await response.json();
+        const chatData = await chatRes.json();
 
-        if (data.success) {
+        if (chatData.success && chatData.response) {
+            // 3. Add bot message to UI
             setTimeout(async () => {
-                addMessage(data.response, 'bot');
+                addMessage(chatData.response, 'bot');
 
-                // Save bot message
+                // 4. Save bot message to DB
                 await fetch('/api/webapp/save-message', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         telegramId: userId,
                         characterId: selectedGirl._id,
-                        message: data.response,
+                        message: chatData.response,
                         sender: 'bot'
                     })
                 });
+
+                console.log('✅ Both messages saved');
             }, 500);
+        } else {
+            addMessage('Ошибка получения ответа 😢', 'bot');
         }
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('❌ Error sending message:', error);
         addMessage('Ошибка отправки 😢', 'bot');
     }
 }
