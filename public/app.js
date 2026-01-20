@@ -30,8 +30,7 @@ async function initApp() {
     await loadGirls();
 }
 
-// Call init on page load
-initApp();
+// Call init on page load (removed duplicate - handled by DOMContentLoaded)
 
 // Debug logging
 window.addEventListener('load', () => {
@@ -60,20 +59,23 @@ async function loadGirls() {
         console.log(`✅ Loaded ${girls.length} girls`);
 
         if (girls.length === 0) {
-            document.getElementById('cardStack').innerHTML = `
-                <div style="color: white; text-align: center; padding: 40px;">
-                    <h3>😢 Нет девушек</h3>
-                    <p>Проверьте базу данных</p>
-                </div>
-            `;
+            const swipeView = document.getElementById('swipeView');
+            if (swipeView) {
+                swipeView.innerHTML = `
+                    <div style="color: white; text-align: center; padding: 40px;">
+                        <h3>😢 Нет девушек</h3>
+                        <p>Проверьте базу данных</p>
+                    </div>
+                `;
+            }
         } else {
             renderCards();
         }
     } catch (error) {
         console.error('❌ Load error:', error);
-        const stack = document.getElementById('cardStack');
-        if (stack) {
-            stack.innerHTML = `
+        const swipeView = document.getElementById('swipeView');
+        if (swipeView) {
+            swipeView.innerHTML = `
                 <div style="color: white; text-align: center; padding: 40px;">
                     <h3>❌ Ошибка</h3>
                     <p>${error.message}</p>
@@ -126,7 +128,7 @@ function createCard(girl, index) {
         <div class="profile-info">
             <div class="profile-name">${girl.name}</div>
             <div class="profile-age">${girl.age} лет</div>
-            <div class="profile-bio">${girl.description}</div>
+            <div class="profile-bio">${girl.bio || girl.description || ''}</div>
         </div>
     `;
 
@@ -135,19 +137,24 @@ function createCard(girl, index) {
 
 // Setup drag & drop
 let startX = 0, currentX = 0, isDragging = false;
+let dragListenersInitialized = false;
 
 function setupDrag() {
     const card = document.querySelector('.profile-card');
     if (!card) return;
 
+    // Add listeners to the current card
     card.addEventListener('mousedown', dragStart);
     card.addEventListener('touchstart', dragStart);
 
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('touchmove', drag);
-
-    document.addEventListener('mouseup', dragEnd);
-    document.addEventListener('touchend', dragEnd);
+    // Initialize document-level listeners only once
+    if (!dragListenersInitialized) {
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('mouseup', dragEnd);
+        document.addEventListener('touchend', dragEnd);
+        dragListenersInitialized = true;
+    }
 }
 
 function dragStart(e) {
@@ -254,7 +261,7 @@ async function selectGirl(girl) {
         // Load sympathy
         const userRes = await fetch(`/api/webapp/user/${userId}`);
         const userData = await userRes.json();
-        sympathy = userData.user?.sympathy?.get(girl._id) || 0;
+        sympathy = userData.user?.sympathy?.[girl._id] || 0;
 
         openChat();
     } catch (error) {
@@ -419,7 +426,11 @@ async function requestPhoto() {
     if (!selectedGirl) return;
 
     if (sympathy < 10) {
-        tg.showAlert(`Нужно больше симпатии! (${sympathy}/10)`);
+        if (window.Telegram?.WebApp) {
+            tg.showAlert(`Нужно больше симпатии! (${sympathy}/10)`);
+        } else {
+            alert(`Нужно больше симпатии! (${sympathy}/10)`);
+        }
         return;
     }
 
@@ -439,12 +450,21 @@ async function requestPhoto() {
             showPhoto(data.photo);
             addMessage('Вот моё фото! 📸💕', 'bot');
         } else {
-            tg.showAlert(data.message || `Попробуй позже! Шанс: ${Math.floor(sympathy)}%`);
+            const message = data.message || `Попробуй позже! Шанс: ${Math.floor(sympathy)}%`;
+            if (window.Telegram?.WebApp) {
+                tg.showAlert(message);
+            } else {
+                alert(message);
+            }
             addMessage(data.message || 'Пока не готова делиться фото 🙈', 'bot');
         }
     } catch (error) {
         console.error('Error requesting photo:', error);
-        tg.showAlert('Ошибка запроса фото');
+        if (window.Telegram?.WebApp) {
+            tg.showAlert('Ошибка запроса фото');
+        } else {
+            alert('Ошибка запроса фото');
+        }
     }
 }
 
@@ -468,7 +488,10 @@ function updateSympathyBar() {
 
 // Show no more cards
 function showNoMore() {
-    document.getElementById('noMore').style.display = 'block';
+    const noMoreCards = document.getElementById('noMoreCards');
+    if (noMoreCards) {
+        noMoreCards.style.display = 'block';
+    }
     document.getElementById('actionButtons').style.display = 'none';
 }
 
@@ -591,7 +614,7 @@ async function selectGirlFromMatches(girl) {
 
         const userRes = await fetch(`/api/webapp/user/${userId}`);
         const userData = await userRes.json();
-        sympathy = userData.user?.totalMessages || 0;
+        sympathy = userData.user?.sympathy?.[girl._id] || 0;
 
         // Hide matches, show chat
         document.getElementById('matchesView').style.display = 'none';
@@ -605,8 +628,10 @@ async function selectGirlFromMatches(girl) {
 // Reset and reload cards
 function resetCards() {
     currentGirlIndex = 0;
-    const stack = document.getElementById('cardStack');
-    stack.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><br><br>Загрузка девушек...</div>';
+    const swipeView = document.getElementById('swipeView');
+    if (swipeView) {
+        swipeView.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><br><br>Загрузка девушек...</div>';
+    }
     loadGirls();
 }
 

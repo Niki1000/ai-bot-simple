@@ -219,6 +219,37 @@ app.post('/api/webapp/chat', async (req, res) => {
   }
 });
 
+// POST request photo
+app.post('/api/webapp/request-photo', async (req, res) => {
+  try {
+    await connectDB();
+    const { telegramId, characterId } = req.body;
+    const user = await User.findOne({ telegramId: parseInt(telegramId) });
+    const char = await Character.findById(characterId);
+    
+    if (!user || !char) {
+      return res.json({ success: false, message: 'Не найдено' });
+    }
+    
+    const sympathy = user.sympathy?.[characterId] || 0;
+    const chance = Math.min(100, sympathy);
+    
+    // Random chance based on sympathy
+    if (Math.random() * 100 < chance && char.photos && char.photos.length > 0) {
+      const randomPhoto = char.photos[Math.floor(Math.random() * char.photos.length)];
+      return res.json({ success: true, photo: randomPhoto });
+    }
+    
+    res.json({ 
+      success: false, 
+      message: `Попробуй позже! Шанс: ${Math.floor(chance)}%` 
+    });
+  } catch (e) {
+    console.error('❌ Request photo error:', e);
+    res.json({ success: false, error: e.message });
+  }
+});
+
 // Telegram webhook - ADD THIS
 app.post('/api/webhook', async (req, res) => {
   try {
