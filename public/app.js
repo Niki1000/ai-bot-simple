@@ -98,12 +98,25 @@ function renderCards() {
     const oldCards = container.querySelectorAll('.profile-card');
     oldCards.forEach(card => card.remove());
 
+    // Hide loading spinner
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.style.display = 'none';
+    }
+
+    // Check if we've run out of cards
     if (currentGirlIndex >= girls.length) {
         showNoMore();
         return;
     }
 
-    // Show next 3 cards
+    // Hide "no more cards" message if it was showing
+    const noMoreCards = document.getElementById('noMoreCards');
+    if (noMoreCards) {
+        noMoreCards.style.display = 'none';
+    }
+
+    // Show next 3 cards (stacked)
     for (let i = 0; i < 3 && currentGirlIndex + i < girls.length; i++) {
         const girl = girls[currentGirlIndex + i];
         const card = createCard(girl, i);
@@ -112,6 +125,8 @@ function renderCards() {
 
     // Setup drag on top card
     setupDrag();
+    
+    console.log(`🃏 Rendered cards. Index: ${currentGirlIndex}/${girls.length}`);
 }
 
 // Create card element
@@ -302,8 +317,26 @@ async function openChat() {
 
             console.log(`✅ Loaded ${historyData.history.length} messages`);
         } else {
-            // No history - show welcome message
-            addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
+            // No history - show welcome message and SAVE it to DB
+            const welcomeMsg = selectedGirl.welcomeMessage || 'Привет! 💕';
+            addMessage(welcomeMsg, 'bot');
+            
+            // Save welcome message to DB so it persists
+            try {
+                await fetch('/api/webapp/save-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        telegramId: userId,
+                        characterId: selectedGirl._id,
+                        message: welcomeMsg,
+                        sender: 'bot'
+                    })
+                });
+                console.log('✅ Welcome message saved to DB');
+            } catch (saveErr) {
+                console.error('❌ Failed to save welcome message:', saveErr);
+            }
         }
 
         // Scroll to bottom
@@ -488,11 +521,28 @@ function updateSympathyBar() {
 
 // Show no more cards
 function showNoMore() {
+    // Hide loading spinner if visible
+    const loading = document.getElementById('loading');
+    if (loading) {
+        loading.style.display = 'none';
+    }
+    
+    // Show the "no more cards" UI
     const noMoreCards = document.getElementById('noMoreCards');
     if (noMoreCards) {
-        noMoreCards.style.display = 'block';
+        noMoreCards.style.display = 'flex';
+        noMoreCards.style.flexDirection = 'column';
+        noMoreCards.style.alignItems = 'center';
+        noMoreCards.style.justifyContent = 'center';
+        noMoreCards.style.textAlign = 'center';
+        noMoreCards.style.color = 'white';
+        noMoreCards.style.padding = '40px';
     }
+    
+    // Hide action buttons
     document.getElementById('actionButtons').style.display = 'none';
+    
+    console.log('📭 No more cards to show');
 }
 
 // Handle enter key in chat
@@ -507,6 +557,7 @@ function showMatches() {
     document.getElementById('actionButtons').style.display = 'none';
     document.getElementById('chatView').style.display = 'none';
     document.getElementById('matchesView').style.display = 'flex';
+    document.getElementById('userProfileView').style.display = 'none';
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -521,6 +572,7 @@ function showSwipe() {
     document.getElementById('actionButtons').style.display = 'flex';
     document.getElementById('chatView').style.display = 'none';
     document.getElementById('matchesView').style.display = 'none';
+    document.getElementById('userProfileView').style.display = 'none';
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -561,7 +613,19 @@ async function loadMatches() {
 
         matchesData.matches.forEach(girl => {
             const sympathy = userData.user?.sympathy?.[girl._id] || 0;
-            const lastMessage = girl.welcomeMessage || 'Привет! 💕';
+            
+            // Get last message from chat history, or fall back to welcome message
+            const chatHistory = userData.user?.chatHistory?.[girl._id] || [];
+            let lastMessage = girl.welcomeMessage || 'Привет! 💕';
+            if (chatHistory.length > 0) {
+                const lastMsg = chatHistory[chatHistory.length - 1];
+                lastMessage = lastMsg.message;
+            }
+            
+            // Truncate long messages for preview
+            if (lastMessage.length > 40) {
+                lastMessage = lastMessage.substring(0, 40) + '...';
+            }
 
             const card = document.createElement('div');
             card.className = 'match-card';
@@ -627,14 +691,440 @@ async function selectGirlFromMatches(girl) {
 }
 // Reset and reload cards
 function resetCards() {
+    console.log('🔄 Resetting cards...');
     currentGirlIndex = 0;
-    const swipeView = document.getElementById('swipeView');
-    if (swipeView) {
-        swipeView.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><br><br>Загрузка девушек...</div>';
+    
+    // Hide "no more cards" UI
+    const noMoreCards = document.getElementById('noMoreCards');
+    if (noMoreCards) {
+        noMoreCards.style.display = 'none';
     }
-    loadGirls();
+    
+    // Show action buttons again
+    document.getElementById('actionButtons').style.display = 'flex';
+    
+    // If we still have girls loaded, just re-render them
+    if (girls.length > 0) {
+        console.log(`✅ Re-rendering ${girls.length} existing girls`);
+        renderCards();
+    } else {
+        // Otherwise, reload from server
+        const swipeView = document.getElementById('swipeView');
+        if (swipeView) {
+            // Clear existing cards first
+            const oldCards = swipeView.querySelectorAll('.profile-card');
+            oldCards.forEach(card => card.remove());
+            
+            // Show loading
+            let loading = document.getElementById('loading');
+            if (!loading) {
+                loading = document.createElement('div');
+                loading.id = 'loading';
+                loading.className = 'loading';
+                loading.innerHTML = '<i class="fas fa-spinner fa-spin"></i><br><br>Загрузка девушек...';
+                swipeView.appendChild(loading);
+            }
+            loading.style.display = 'block';
+        }
+        loadGirls();
+    }
 }
 
+
+// ==================== USER PROFILE ====================
+
+// Show user profile view
+async function showUserProfile() {
+    document.getElementById('swipeView').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'none';
+    document.getElementById('chatView').style.display = 'none';
+    document.getElementById('matchesView').style.display = 'none';
+    document.getElementById('userProfileView').style.display = 'flex';
+
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.nav-item')[2].classList.add('active');
+
+    // Load user data
+    try {
+        const userRes = await fetch(`/api/webapp/user/${userId}`);
+        const userData = await userRes.json();
+
+        console.log('👤 User profile data:', userData);
+
+        if (userData.success && userData.user) {
+            const user = userData.user;
+            
+            // Set user ID
+            document.getElementById('userProfileId').textContent = `ID: ${userId}`;
+            
+            // Try to get Telegram name
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+                const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+                const name = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : '');
+                document.getElementById('userProfileName').textContent = name || 'Пользователь';
+            }
+            
+            // Stats
+            const matchesCount = user.likes?.length || 0;
+            const messagesCount = user.totalMessages || 0;
+            
+            // Calculate total sympathy across all characters
+            let totalSympathy = 0;
+            if (user.sympathy) {
+                Object.values(user.sympathy).forEach(val => {
+                    totalSympathy += val;
+                });
+            }
+            
+            document.getElementById('userMatchesCount').textContent = matchesCount;
+            document.getElementById('userMessagesCount').textContent = messagesCount;
+            document.getElementById('userTotalSympathy').textContent = totalSympathy;
+            
+            // Subscription status and credits
+            const subLevel = user.subscriptionLevel || 'free';
+            const credits = user.credits || 0;
+            
+            const statusBadge = document.querySelector('.status-badge');
+            if (subLevel === 'premium') {
+                statusBadge.textContent = 'Premium';
+                statusBadge.className = 'status-badge premium';
+            } else {
+                statusBadge.textContent = 'Бесплатно';
+                statusBadge.className = 'status-badge free';
+            }
+            
+            // Update credits display
+            document.getElementById('userCreditsCount').textContent = credits;
+            
+            // Update local cache
+            userEntitlements.credits = credits;
+            userEntitlements.subscriptionLevel = subLevel;
+            userEntitlements.unlockedPhotos = user.unlockedPhotos || {};
+            
+            // Load recent chats
+            loadRecentChats(user);
+        }
+    } catch (error) {
+        console.error('❌ Error loading user profile:', error);
+    }
+}
+
+// Load recent chats for user profile
+async function loadRecentChats(user) {
+    const container = document.getElementById('userRecentChats');
+    
+    if (!user.likes || user.likes.length === 0) {
+        container.innerHTML = '<div class="no-recent">Начни общение с девушками!</div>';
+        return;
+    }
+    
+    try {
+        // Get matches data
+        const matchesRes = await fetch(`/api/webapp/matches/${userId}`);
+        const matchesData = await matchesRes.json();
+        
+        if (!matchesData.success || matchesData.matches.length === 0) {
+            container.innerHTML = '<div class="no-recent">Начни общение с девушками!</div>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        
+        // Show up to 3 recent matches
+        const recentMatches = matchesData.matches.slice(0, 3);
+        
+        recentMatches.forEach(girl => {
+            const chatHistory = user.chatHistory?.[girl._id] || [];
+            let lastMessage = girl.welcomeMessage || 'Привет! 💕';
+            
+            if (chatHistory.length > 0) {
+                lastMessage = chatHistory[chatHistory.length - 1].message;
+            }
+            
+            if (lastMessage.length > 30) {
+                lastMessage = lastMessage.substring(0, 30) + '...';
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'recent-chat-item';
+            item.onclick = () => openChatFromProfile(girl);
+            
+            item.innerHTML = `
+                <div class="recent-chat-avatar" style="background-image: url('${girl.avatarUrl}')"></div>
+                <div class="recent-chat-info">
+                    <div class="recent-chat-name">${girl.name}</div>
+                    <div class="recent-chat-preview">${lastMessage}</div>
+                </div>
+            `;
+            
+            container.appendChild(item);
+        });
+        
+    } catch (error) {
+        console.error('❌ Error loading recent chats:', error);
+        container.innerHTML = '<div class="no-recent">Ошибка загрузки</div>';
+    }
+}
+
+// Open chat from user profile
+async function openChatFromProfile(girl) {
+    selectedGirl = girl;
+    
+    try {
+        await fetch('/api/webapp/select-character', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: userId,
+                characterId: girl._id
+            })
+        });
+        
+        const userRes = await fetch(`/api/webapp/user/${userId}`);
+        const userData = await userRes.json();
+        sympathy = userData.user?.sympathy?.[girl._id] || 0;
+        
+        document.getElementById('userProfileView').style.display = 'none';
+        openChat();
+        
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('userProfileView').style.display = 'none';
+        openChat();
+    }
+}
+
+// Show upgrade modal (placeholder)
+function showUpgradeModal() {
+    const message = '🚀 Premium скоро!\n\nФункция Premium подписки находится в разработке. Следите за обновлениями!';
+    if (window.Telegram?.WebApp) {
+        tg.showAlert(message);
+    } else {
+        alert(message);
+    }
+}
+
+// Get test credits (demo function)
+async function getTestCredits() {
+    try {
+        const res = await fetch('/api/webapp/add-credits', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: userId,
+                amount: 50
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            // Update local cache
+            userEntitlements.credits = data.credits;
+            
+            // Update UI
+            document.getElementById('userCreditsCount').textContent = data.credits;
+            
+            const msg = `🎁 Получено 50 кредитов!\n\nВсего: ${data.credits} кредитов`;
+            if (window.Telegram?.WebApp) {
+                tg.showAlert(msg);
+            } else {
+                alert(msg);
+            }
+            
+            console.log('💰 Credits added. Total:', data.credits);
+        }
+    } catch (error) {
+        console.error('❌ Error adding credits:', error);
+    }
+}
+
+// Show settings (placeholder)
+function showSettings() {
+    const message = '⚙️ Настройки\n\nЭтот раздел находится в разработке.';
+    if (window.Telegram?.WebApp) {
+        tg.showAlert(message);
+    } else {
+        alert(message);
+    }
+}
+
+// ==================== CHARACTER PROFILE ====================
+
+// User entitlements cache
+let userEntitlements = {
+    subscriptionLevel: 'free',
+    credits: 0,
+    unlockedPhotos: {}
+};
+
+// Open character profile view
+async function openCharacterProfile() {
+    if (!selectedGirl) return;
+    
+    console.log('👤 Opening profile for:', selectedGirl.name);
+    
+    // Load user entitlements first
+    try {
+        const entRes = await fetch(`/api/webapp/user-entitlements/${userId}`);
+        const entData = await entRes.json();
+        if (entData.success) {
+            userEntitlements = entData;
+            console.log('🔑 Entitlements loaded:', userEntitlements);
+        }
+    } catch (e) {
+        console.error('Failed to load entitlements:', e);
+    }
+    
+    // Populate profile data
+    document.getElementById('profileViewName').textContent = selectedGirl.name;
+    document.getElementById('profileName').textContent = selectedGirl.name;
+    document.getElementById('profileAge').textContent = `${selectedGirl.age} лет`;
+    document.getElementById('profileBio').textContent = selectedGirl.bio || 'Информация отсутствует';
+    document.getElementById('profilePersonality').textContent = selectedGirl.personality || 'Узнай меня лучше в чате! 💕';
+    document.getElementById('profileSympathy').textContent = sympathy;
+    
+    // Fake compatibility based on sympathy (for now)
+    const compatibility = Math.min(99, 50 + Math.floor(sympathy * 2));
+    document.getElementById('profileCompatibility').textContent = `${compatibility}%`;
+    
+    // Set main photo
+    const mainPhoto = document.getElementById('profileMainPhoto');
+    mainPhoto.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
+    
+    // Populate gallery with unlock status
+    const galleryContainer = document.getElementById('profileGallery');
+    galleryContainer.innerHTML = '';
+    
+    // Get unlocked photos for this character
+    const unlockedForChar = userEntitlements.unlockedPhotos?.[selectedGirl._id] || [];
+    const isPremium = userEntitlements.subscriptionLevel === 'premium';
+    
+    // Add avatar as first photo (always unlocked)
+    const avatarItem = document.createElement('div');
+    avatarItem.className = 'gallery-item';
+    avatarItem.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
+    avatarItem.onclick = () => showPhoto(selectedGirl.avatarUrl);
+    galleryContainer.appendChild(avatarItem);
+    
+    // Add other photos from character
+    if (selectedGirl.photos && selectedGirl.photos.length > 0) {
+        selectedGirl.photos.forEach((photoUrl, index) => {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+            item.style.backgroundImage = `url('${photoUrl}')`;
+            
+            // First photo always free, others check unlock status
+            const isUnlocked = index === 0 || isPremium || unlockedForChar.includes(photoUrl);
+            
+            if (isUnlocked) {
+                item.onclick = () => showPhoto(photoUrl);
+            } else {
+                item.classList.add('locked');
+                item.onclick = () => handleLockedPhoto(photoUrl);
+            }
+            
+            galleryContainer.appendChild(item);
+        });
+    }
+    
+    // Show profile view
+    document.getElementById('characterProfileView').style.display = 'flex';
+}
+
+// Close character profile view
+function closeCharacterProfile() {
+    document.getElementById('characterProfileView').style.display = 'none';
+}
+
+// Handle locked photo click
+async function handleLockedPhoto(photoUrl) {
+    const credits = userEntitlements.credits || 0;
+    
+    if (credits >= 10) {
+        // User has credits - offer to unlock
+        const confirmMsg = `Разблокировать фото за 10 кредитов?\n\nУ вас: ${credits} кредитов`;
+        
+        if (window.Telegram?.WebApp) {
+            tg.showConfirm(confirmMsg, async (confirmed) => {
+                if (confirmed) {
+                    await unlockPhoto(photoUrl);
+                }
+            });
+        } else {
+            if (confirm(confirmMsg)) {
+                await unlockPhoto(photoUrl);
+            }
+        }
+    } else {
+        // Not enough credits
+        const message = `🔒 Фото заблокировано\n\nНужно 10 кредитов для разблокировки.\nУ вас: ${credits} кредитов\n\nОформите Premium или получите больше кредитов!`;
+        if (window.Telegram?.WebApp) {
+            tg.showAlert(message);
+        } else {
+            alert(message);
+        }
+    }
+}
+
+// Unlock photo
+async function unlockPhoto(photoUrl) {
+    try {
+        const res = await fetch('/api/webapp/unlock-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: userId,
+                characterId: selectedGirl._id,
+                photoUrl: photoUrl
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            // Update local entitlements
+            userEntitlements.credits = data.remainingCredits;
+            if (!userEntitlements.unlockedPhotos[selectedGirl._id]) {
+                userEntitlements.unlockedPhotos[selectedGirl._id] = [];
+            }
+            userEntitlements.unlockedPhotos[selectedGirl._id].push(photoUrl);
+            
+            // Show the photo
+            showPhoto(photoUrl);
+            
+            // Refresh the gallery to update lock states
+            openCharacterProfile();
+            
+            console.log('✅ Photo unlocked! Remaining credits:', data.remainingCredits);
+        } else {
+            const errMsg = data.error || 'Не удалось разблокировать фото';
+            if (window.Telegram?.WebApp) {
+                tg.showAlert(errMsg);
+            } else {
+                alert(errMsg);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Unlock error:', error);
+        if (window.Telegram?.WebApp) {
+            tg.showAlert('Ошибка при разблокировке');
+        } else {
+            alert('Ошибка при разблокировке');
+        }
+    }
+}
+
+// Show locked photo message (legacy, kept for compatibility)
+function showLockedPhotoMessage() {
+    const message = 'Эта фотография заблокирована 🔒\nНабери больше симпатии или оформи подписку!';
+    if (window.Telegram?.WebApp) {
+        tg.showAlert(message);
+    } else {
+        alert(message);
+    }
+}
 
 // Start app
 document.addEventListener('DOMContentLoaded', initApp);
