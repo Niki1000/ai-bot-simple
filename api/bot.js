@@ -20,7 +20,10 @@ const userSchema = new mongoose.Schema({
   passes: [String],
   sympathy: Object,
   chatHistory: Object,
-  totalMessages: Number
+  unlockedPhotos: Object,
+  totalMessages: Number,
+  subscriptionLevel: { type: String, default: 'free' },
+  credits: { type: Number, default: 0 }
 }, { strict: false });
 
 const charSchema = new mongoose.Schema({
@@ -86,9 +89,26 @@ async function handleUpdate(update) {
       }
       
       // Handle regular messages - AI chat
-      const user = await User.findOne({ telegramId: userId });
+      let user = await User.findOne({ telegramId: userId });
       
-      if (!user || !user.selectedGirl) {
+      // Create user if doesn't exist (shouldn't happen, but safety check)
+      if (!user) {
+        user = new User({
+          telegramId: userId,
+          likes: [],
+          passes: [],
+          sympathy: {},
+          chatHistory: {},
+          unlockedPhotos: {},
+          totalMessages: 0,
+          subscriptionLevel: 'free',
+          credits: 0
+        });
+        await user.save();
+        console.log(`👤 Created new user ${userId} from bot`);
+      }
+      
+      if (!user.selectedGirl) {
         await bot.sendMessage(chatId, 
           '❌ Сначала выбери девушку в приложении!\n\n' +
           'Используй /start чтобы открыть AI Dating 💕'
@@ -126,24 +146,42 @@ async function handleUpdate(update) {
       const data = await deepseekRes.json();
       const response = data.choices?.[0]?.message?.content || 'Хм... 🤔';
       
-      // Save messages
+      // Save messages - CRITICAL: Use markModified() for nested objects
+      // Initialize nested objects if missing
       if (!user.chatHistory) user.chatHistory = {};
       if (!user.sympathy) user.sympathy = {};
+      if (!user.unlockedPhotos) user.unlockedPhotos = {};
       
       const charId = char._id.toString();
       if (!user.chatHistory[charId]) {
         user.chatHistory[charId] = [];
       }
       
-      user.chatHistory[charId].push(
-        { message: text, sender: 'user', timestamp: new Date() },
-        { message: response, sender: 'bot', timestamp: new Date() }
-      );
+      // Save user message
+      user.chatHistory[charId].push({
+        message: text,
+        sender: 'user',
+        timestamp: new Date()
+      });
       
+      // Save bot response
+      user.chatHistory[charId].push({
+        message: response,
+        sender: 'bot',
+        timestamp: new Date()
+      });
+      
+      // Update sympathy and total messages
       user.sympathy[charId] = (user.sympathy[charId] || 0) + 1;
       user.totalMessages = (user.totalMessages || 0) + 1;
       
+      // CRITICAL: Mark nested objects as modified so Mongoose saves them
+      user.markModified('chatHistory');
+      user.markModified('sympathy');
+      
       await user.save();
+      
+      console.log(`💾 Saved messages to DB. History length: ${user.chatHistory[charId].length}`);
       
       // Send response
       await bot.sendMessage(chatId, `💕 ${char.name}:\n\n${response}`);
