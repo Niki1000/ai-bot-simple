@@ -54,7 +54,10 @@ async function handleUpdate(update) {
       
       // Handle /start command
       if (text === '/start') {
-        const webAppUrl = process.env.WEBAPP_URL || 'https://ai-bot-simple.vercel.app';
+        const baseUrl = process.env.WEBAPP_URL || 'https://ai-bot-simple.vercel.app';
+        // Add cache-busting parameter to force fresh load
+        const timestamp = Date.now();
+        const webAppUrl = `${baseUrl}?v=${timestamp}`;
         
         await bot.sendMessage(chatId, 
           '💕 Привет! Добро пожаловать в AI Dating!\n\n' +
