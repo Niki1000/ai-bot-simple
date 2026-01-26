@@ -58,7 +58,7 @@ async function handleUpdate(update) {
         // VERCEL_URL is the current deployment URL, but for production use a stable URL
         const baseUrl = process.env.WEBAPP_URL || 
                        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-                       'https://ai-bot-simple-niki1000s-projects.vercel.app';
+                       'https://ai-bot-simple.vercel.app';
         // Add cache-busting parameter to force fresh load
         const timestamp = Date.now();
         const webAppUrl = `${baseUrl}?v=${timestamp}`;
@@ -212,7 +212,7 @@ async function setWebhook() {
     // VERCEL_URL is automatically provided by Vercel and points to current deployment
     const baseUrl = process.env.WEBAPP_URL || 
                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-                    'https://ai-bot-simple-niki1000s-projects.vercel.app');
+                    'https://ai-bot-simple.vercel.app');
     
     const webhookUrl = `${baseUrl}/api/webhook`;
     await bot.setWebhook(webhookUrl);
