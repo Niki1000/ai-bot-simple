@@ -40,7 +40,7 @@ window.addEventListener('load', () => {
     console.log('Telegram WebApp:', window.Telegram?.WebApp?.initDataUnsafe);
 });
 
-
+//yeba
 //Load girls
 async function loadGirls() {
     try {
