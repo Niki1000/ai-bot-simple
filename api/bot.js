@@ -40,6 +40,17 @@ const charSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 const Character = mongoose.models.Character || mongoose.model('Character', charSchema);
 
+// Remove persistent keyboard buttons (keep only Web App button)
+async function removeKeyboardButtons() {
+  try {
+    // Remove all bot commands
+    await bot.deleteMyCommands();
+    console.log('✅ Removed bot commands/keyboard buttons');
+  } catch (error) {
+    console.error('❌ Error removing keyboard buttons:', error);
+  }
+}
+
 // Handle updates from webhook
 async function handleUpdate(update) {
   try {
@@ -54,6 +65,9 @@ async function handleUpdate(update) {
       
       // Handle /start command
       if (text === '/start') {
+        // Remove any persistent keyboard buttons
+        await removeKeyboardButtons();
+        
         // Use WEBAPP_URL if set, otherwise VERCEL_URL (auto-provided by Vercel), or fallback
         // VERCEL_URL is the current deployment URL, but for production use a stable URL
         const baseUrl = process.env.WEBAPP_URL || 
@@ -91,7 +105,11 @@ async function handleUpdate(update) {
         });
         message += '\nОткрой Web App чтобы начать общение! 👆';
         
-        await bot.sendMessage(chatId, message);
+        await bot.sendMessage(chatId, message, {
+          reply_markup: {
+            remove_keyboard: true
+          }
+        });
         return;
       }
       
@@ -118,7 +136,12 @@ async function handleUpdate(update) {
       if (!user.selectedGirl) {
         await bot.sendMessage(chatId, 
           '❌ Сначала выбери девушку в приложении!\n\n' +
-          'Используй /start чтобы открыть AI Dating 💕'
+          'Используй /start чтобы открыть AI Dating 💕',
+          {
+            reply_markup: {
+              remove_keyboard: true
+            }
+          }
         );
         return;
       }
@@ -126,7 +149,11 @@ async function handleUpdate(update) {
       // Get character
       const char = await Character.findById(user.selectedGirl);
       if (!char) {
-        await bot.sendMessage(chatId, '❌ Девушка не найдена. Выбери другую!');
+        await bot.sendMessage(chatId, '❌ Девушка не найдена. Выбери другую!', {
+          reply_markup: {
+            remove_keyboard: true
+          }
+        });
         return;
       }
       
@@ -190,8 +217,12 @@ async function handleUpdate(update) {
       
       console.log(`💾 Saved messages to DB. History length: ${user.chatHistory[charId].length}`);
       
-      // Send response
-      await bot.sendMessage(chatId, `💕 ${char.name}:\n\n${response}`);
+      // Send response - remove keyboard buttons
+      await bot.sendMessage(chatId, `💕 ${char.name}:\n\n${response}`, {
+        reply_markup: {
+          remove_keyboard: true
+        }
+      });
       
       console.log(`✅ Replied to ${userId}`);
     }
@@ -222,4 +253,7 @@ async function setWebhook() {
   }
 }
 
-module.exports = { bot, handleUpdate, setWebhook };
+// Initialize: Remove keyboard buttons on startup
+removeKeyboardButtons();
+
+module.exports = { bot, handleUpdate, setWebhook, removeKeyboardButtons };

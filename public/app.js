@@ -40,13 +40,15 @@ window.addEventListener('load', () => {
     console.log('Telegram WebApp:', window.Telegram?.WebApp?.initDataUnsafe);
 });
 
-//yeba
+//yebagi
 //Load girls
 async function loadGirls() {
     try {
         console.log('🔍 Loading girls...');
 
-        const response = await fetch('/api/webapp/characters');
+        // Pass telegramId to filter out already liked characters with chat history
+        const url = `/api/webapp/characters${userId ? `?telegramId=${userId}` : ''}`;
+        const response = await fetch(url);
         const data = await response.json();
 
         console.log('📦 Response:', data);
