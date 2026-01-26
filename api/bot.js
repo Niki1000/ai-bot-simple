@@ -54,7 +54,11 @@ async function handleUpdate(update) {
       
       // Handle /start command
       if (text === '/start') {
-        const baseUrl = process.env.WEBAPP_URL || 'https://ai-bot-simple.vercel.app';
+        // Use WEBAPP_URL if set, otherwise VERCEL_URL (auto-provided by Vercel), or fallback
+        // VERCEL_URL is the current deployment URL, but for production use a stable URL
+        const baseUrl = process.env.WEBAPP_URL || 
+                       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                       'https://ai-bot-simple.vercel.app';
         // Add cache-busting parameter to force fresh load
         const timestamp = Date.now();
         const webAppUrl = `${baseUrl}?v=${timestamp}`;
@@ -204,7 +208,17 @@ async function handleUpdate(update) {
 // Set webhook
 async function setWebhook() {
   try {
-    const webhookUrl = `${process.env.WEBAPP_URL}/api/webhook`;
+    // For webhook, use VERCEL_URL (current deployment) or WEBAPP_URL
+    // VERCEL_URL is automatically provided by Vercel and points to current deployment
+    const baseUrl = process.env.WEBAPP_URL || 
+                   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+    
+    if (!baseUrl) {
+      console.error('❌ No webhook URL configured. Set WEBAPP_URL or VERCEL_URL');
+      return;
+    }
+    
+    const webhookUrl = `${baseUrl}/api/webhook`;
     await bot.setWebhook(webhookUrl);
     console.log('✅ Webhook set:', webhookUrl);
   } catch (error) {
