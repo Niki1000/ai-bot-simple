@@ -387,11 +387,13 @@ async function openChat() {
 
 
 
-// Back to swipe view
+// Back to matches view (from chat)
 function backToSwipe() {
     document.getElementById('chatView').style.display = 'none';
-    document.getElementById('swipeView').style.display = 'flex';
-    document.getElementById('actionButtons').style.display = 'flex';
+    document.getElementById('swipeView').style.display = 'none';
+    document.getElementById('actionButtons').style.display = 'none';
+    document.getElementById('matchesView').style.display = 'flex';
+    document.getElementById('userProfileView').style.display = 'none';
 
     selectedGirl = null;
     sympathy = 0;
@@ -399,7 +401,12 @@ function backToSwipe() {
     // Clear chat
     document.getElementById('chatMessages').innerHTML = '';
 
-    renderCards();
+    // Update nav to matches
+    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.nav-item')[1].classList.add('active');
+
+    // Reload matches list
+    loadMatches();
 }
 
 // Send message - FIXED to save both messages

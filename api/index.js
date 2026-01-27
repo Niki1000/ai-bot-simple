@@ -426,6 +426,17 @@ app.post('/api/webapp/add-credits', async (req, res) => {
   }
 });
 
+// POST seed database (for development/testing)
+app.post('/api/seed', async (req, res) => {
+  try {
+    const { handleSeed } = require('./seed');
+    await handleSeed(req, res);
+  } catch (error) {
+    console.error('❌ Seed endpoint error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Telegram webhook - ADD THIS
 app.post('/api/webhook', async (req, res) => {
   try {
