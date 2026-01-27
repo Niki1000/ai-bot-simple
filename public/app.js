@@ -11,6 +11,17 @@ let sympathy = 0;
 let lastReadMessages = {}; // Track last read message timestamp per character: { characterId: timestamp }
 let isChatLoading = false; // Prevent multiple simultaneous chat loads
 
+// Performance: Cache for API responses
+let apiCache = {
+    userData: null,
+    userDataTimestamp: 0,
+    matches: null,
+    matchesTimestamp: 0,
+    entitlements: null,
+    entitlementsTimestamp: 0
+};
+const CACHE_DURATION = 30000; // 30 seconds cache
+
 // ==================== API UTILITY FUNCTIONS ====================
 
 /**
@@ -148,43 +159,72 @@ function setTelegramProfilePicture(elementId) {
     }
 }
 
-// Initialize
+// Initialize with error boundary
 async function initApp() {
-    // Get Telegram user ID
-    if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        userId = tg.initDataUnsafe?.user?.id || 675257; // Fallback for testing
+    try {
+        // Get Telegram user ID
+        if (window.Telegram?.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            userId = tg.initDataUnsafe?.user?.id || 675257; // Fallback for testing
 
-        // Save to localStorage
-        localStorage.setItem('telegramUserId', userId);
+            // Save to localStorage
+            localStorage.setItem('telegramUserId', userId);
+            
+            // Set header avatar profile picture
+            setTelegramProfilePicture('userAvatar');
+        } else {
+            // Get from localStorage or use test ID
+            userId = localStorage.getItem('telegramUserId') || 675257;
+        }
+
+        // Validate userId
+        if (!userId || isNaN(userId)) {
+            throw new Error('Invalid user ID');
+        }
+
+        // Load last read messages from localStorage
+        const savedLastRead = localStorage.getItem('lastReadMessages');
+        if (savedLastRead) {
+            try {
+                lastReadMessages = JSON.parse(savedLastRead);
+            } catch (e) {
+                console.error('Failed to parse lastReadMessages:', e);
+                lastReadMessages = {};
+            }
+        }
+
+        console.log('👤 User ID:', userId);
+
+        await loadGirls();
         
-        // Set header avatar profile picture
-        setTelegramProfilePicture('userAvatar');
-    } else {
-        // Get from localStorage or use test ID
-        userId = localStorage.getItem('telegramUserId') || 675257;
-    }
-
-    // Load last read messages from localStorage
-    const savedLastRead = localStorage.getItem('lastReadMessages');
-    if (savedLastRead) {
-        try {
-            lastReadMessages = JSON.parse(savedLastRead);
-        } catch (e) {
-            console.error('Failed to parse lastReadMessages:', e);
-            lastReadMessages = {};
+        // Update matches tab notification on init
+        updateMatchesTabNotification();
+    } catch (error) {
+        console.error('❌ Critical error in initApp:', error);
+        // Show error to user
+        const errorMsg = 'Ошибка загрузки приложения. Пожалуйста, перезагрузите страницу.';
+        if (window.Telegram?.WebApp) {
+            tg.showAlert(errorMsg);
+        } else {
+            alert(errorMsg);
         }
     }
-
-    console.log('👤 User ID:', userId);
-
-    await loadGirls();
-    
-    // Update matches tab notification on init
-    updateMatchesTabNotification();
 }
+
+// Global error handler
+window.addEventListener('error', (event) => {
+    console.error('❌ Global error:', event.error);
+    // Don't show alert for every error, just log
+});
+
+// Unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('❌ Unhandled promise rejection:', event.reason);
+    // Prevent default browser error handling
+    event.preventDefault();
+});
 
 // Call init on page load (removed duplicate - handled by DOMContentLoaded)
 
@@ -294,7 +334,7 @@ function renderCards() {
     console.log(`🃏 Rendered cards. Index: ${currentGirlIndex}/${girls.length}`);
 }
 
-// Create card element
+// Create card element with lazy loading
 function createCard(girl, index) {
     const card = document.createElement('div');
     card.className = 'profile-card';
@@ -302,8 +342,12 @@ function createCard(girl, index) {
     card.style.transform = `scale(${1 - index * 0.05}) translateY(${index * 10}px)`;
     card.dataset.girlId = girl._id;
 
+    // Use data-src for lazy loading, only load top 2 cards immediately
+    const shouldLazyLoad = index > 1;
+    const imageUrl = girl.avatarUrl || 'https://i.pravatar.cc/400';
+    
     card.innerHTML = `
-        <img src="${girl.avatarUrl || 'https://i.pravatar.cc/400'}" alt="${girl.name}" class="card-image">
+        <img ${shouldLazyLoad ? 'data-src' : 'src'}="${imageUrl}" alt="${girl.name}" class="card-image" ${shouldLazyLoad ? 'loading="lazy"' : ''}>
         <div class="card-overlay"></div>
         <div class="profile-info">
             <div class="profile-name">${girl.name}</div>
@@ -311,6 +355,22 @@ function createCard(girl, index) {
             <div class="profile-bio">${girl.bio || girl.description || ''}</div>
         </div>
     `;
+
+    // Lazy load images when they come into view
+    if (shouldLazyLoad) {
+        const img = card.querySelector('img');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
+                }
+            });
+        }, { rootMargin: '50px' });
+        observer.observe(img);
+    }
 
     return card;
 }
@@ -410,6 +470,16 @@ function swipeCard(action) {
         // Don't show error to user - swipe animation already happened
     });
 
+    // Update mission progress (swipe mission)
+    if (dailyMissions && dailyMissions[0]) {
+        dailyMissions[0].progress = Math.min(dailyMissions[0].target, (dailyMissions[0].progress || 0) + 1);
+    }
+
+    // Update mission progress (like mission)
+    if (action === 'like' && dailyMissions && dailyMissions[1]) {
+        dailyMissions[1].progress = Math.min(dailyMissions[1].target, (dailyMissions[1].progress || 0) + 1);
+    }
+
     setTimeout(() => {
         card.remove();
         currentGirlIndex++;
@@ -443,14 +513,27 @@ async function selectGirl(girl) {
             console.error('❌ Failed to save selection (non-critical):', error);
         }
 
-        // Load sympathy (non-blocking - use default if fails)
-        try {
-            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
-            const userData = await safeJsonParse(userRes);
-            sympathy = userData.user?.sympathy?.[girl._id] || 0;
-        } catch (error) {
-            console.error('❌ Failed to load sympathy (non-critical):', error);
-            sympathy = 0;
+        // Load sympathy (non-blocking - use cache or default if fails)
+        const now = Date.now();
+        if (apiCache.userData && (now - apiCache.userDataTimestamp) < CACHE_DURATION) {
+            sympathy = apiCache.userData.user?.sympathy?.[girl._id] || 0;
+        } else {
+            try {
+                const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+                const userData = await safeJsonParse(userRes);
+                sympathy = userData.user?.sympathy?.[girl._id] || 0;
+                // Update cache
+                apiCache.userData = userData;
+                apiCache.userDataTimestamp = now;
+            } catch (error) {
+                console.error('❌ Failed to load sympathy (non-critical):', error);
+                // Use cached data if available
+                if (apiCache.userData) {
+                    sympathy = apiCache.userData.user?.sympathy?.[girl._id] || 0;
+                } else {
+                    sympathy = 0;
+                }
+            }
         }
 
         openChat();
@@ -518,7 +601,7 @@ async function openChat() {
         console.log('📜 Loaded history:', historyData);
 
         sympathy = historyData.sympathy || 0;
-        updateSympathyBar();
+        updateSympathyBar(); // This will also update mood
 
         if (historyData.success && historyData.history && historyData.history.length > 0) {
             // Double-check we still have the right girl selected
@@ -679,14 +762,32 @@ function backToSwipe() {
 // Calculate total unread messages across all matches
 async function getTotalUnreadCount() {
     try {
-        const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
-        const userData = await safeJsonParse(userRes);
+        // Use cache for user data
+        const now = Date.now();
+        let userData;
+        if (apiCache.userData && (now - apiCache.userDataTimestamp) < CACHE_DURATION) {
+            userData = apiCache.userData;
+        } else {
+            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+            userData = await safeJsonParse(userRes);
+            apiCache.userData = userData;
+            apiCache.userDataTimestamp = now;
+        }
         
         if (!userData.success || !userData.user) return 0;
         
         const user = userData.user;
-        const matchesRes = await apiFetch(`/api/webapp/matches/${userId}`, {}, 1);
-        const matchesData = await safeJsonParse(matchesRes);
+        
+        // Use cache for matches
+        let matchesData;
+        if (apiCache.matches && (now - apiCache.matchesTimestamp) < CACHE_DURATION) {
+            matchesData = apiCache.matches;
+        } else {
+            const matchesRes = await apiFetch(`/api/webapp/matches/${userId}`, {}, 1);
+            matchesData = await safeJsonParse(matchesRes);
+            apiCache.matches = matchesData;
+            apiCache.matchesTimestamp = now;
+        }
         
         if (!matchesData.success) return 0;
         
@@ -775,7 +876,7 @@ async function sendMessage() {
 
         if (saveUserData.success && saveUserData.sympathy !== undefined) {
             sympathy = saveUserData.sympathy;
-            updateSympathyBar();
+            updateSympathyBar(); // This will also update mood
         }
 
         // 2. Show typing indicator while waiting for AI response
@@ -830,6 +931,11 @@ async function sendMessage() {
                 // Mark message as read since chat is open
                 lastReadMessages[selectedGirl._id] = Date.now();
                 localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+                
+                // Update mission progress (message mission)
+                if (dailyMissions && dailyMissions[2]) {
+                    dailyMissions[2].progress = Math.min(dailyMissions[2].target, (dailyMissions[2].progress || 0) + 1);
+                }
                 
                 // Update matches tab notification
                 updateMatchesTabNotification();
@@ -1134,6 +1240,50 @@ function updateSympathyBar() {
     const fillPercent = Math.min(100, sympathy);
     document.getElementById('sympathyFill').style.width = `${fillPercent}%`;
     document.getElementById('sympathyText').textContent = `Симпатия: ${sympathy}`;
+    
+    // Update mood indicator based on sympathy
+    updateMoodIndicator();
+}
+
+// Calculate and display character mood based on sympathy
+function updateMoodIndicator() {
+    if (!selectedGirl) return;
+    
+    const moodElement = document.getElementById('characterMood');
+    if (!moodElement) return;
+    
+    let mood = 'neutral';
+    let moodText = '😐';
+    let moodLabel = 'Нейтрально';
+    
+    if (sympathy >= 80) {
+        mood = 'excited';
+        moodText = '😍';
+        moodLabel = 'В восторге';
+    } else if (sympathy >= 60) {
+        mood = 'happy';
+        moodText = '😊';
+        moodLabel = 'Рада';
+    } else if (sympathy >= 40) {
+        mood = 'interested';
+        moodText = '😌';
+        moodLabel = 'Заинтересована';
+    } else if (sympathy >= 20) {
+        mood = 'neutral';
+        moodText = '😐';
+        moodLabel = 'Нейтрально';
+    } else if (sympathy >= 10) {
+        mood = 'shy';
+        moodText = '🙂';
+        moodLabel = 'Стесняется';
+    } else {
+        mood = 'cold';
+        moodText = '😶';
+        moodLabel = 'Холодно';
+    }
+    
+    moodElement.textContent = `${moodText} ${moodLabel}`;
+    moodElement.className = `mood-indicator mood-${mood}`;
 }
 
 // Show no more cards
@@ -1350,13 +1500,44 @@ async function selectGirlFromMatches(girl) {
             console.error('❌ Failed to save selection (non-critical):', error);
         }
 
-        try {
-            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
-            const userData = await safeJsonParse(userRes);
-            sympathy = userData.user?.sympathy?.[girl._id] || 0;
-        } catch (error) {
-            console.error('❌ Failed to load sympathy (non-critical):', error);
-            sympathy = 0;
+        // Use cache for sympathy
+        const now = Date.now();
+        if (apiCache.userData && (now - apiCache.userDataTimestamp) < CACHE_DURATION) {
+            sympathy = apiCache.userData.user?.sympathy?.[girl._id] || 0;
+        } else {
+            try {
+                const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+                const userData = await safeJsonParse(userRes);
+                sympathy = userData.user?.sympathy?.[girl._id] || 0;
+                // Update cache
+                apiCache.userData = userData;
+                apiCache.userDataTimestamp = now;
+            } catch (error) {
+                console.error('❌ Failed to load sympathy (non-critical):', error);
+                // Use cached data if available
+                if (apiCache.userData) {
+                    sympathy = apiCache.userData.user?.sympathy?.[girl._id] || 0;
+                } else {
+                    sympathy = 0;
+                }
+            }
+        }
+
+        // Update mission progress (chat with different girl)
+        if (dailyMissions && dailyMissions[3]) {
+            // Check if this is a new chat (not already in chatHistory)
+            const now = Date.now();
+            let userData;
+            if (apiCache.userData && (now - apiCache.userDataTimestamp) < CACHE_DURATION) {
+                userData = apiCache.userData;
+            }
+            if (userData && userData.user) {
+                const chatHistory = userData.user.chatHistory || {};
+                if (!chatHistory[girl._id] || chatHistory[girl._id].length === 0) {
+                    // This is a new chat
+                    dailyMissions[3].progress = Math.min(dailyMissions[3].target, (dailyMissions[3].progress || 0) + 1);
+                }
+            }
         }
 
         // Hide matches, show chat
@@ -1424,12 +1605,31 @@ async function showUserProfile() {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.nav-item')[2].classList.add('active');
 
-    // Load user data
-    try {
-        const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
-        const userData = await safeJsonParse(userRes);
-
-        console.log('👤 User profile data:', userData);
+    // Load user data (with caching)
+    const now = Date.now();
+    let userData;
+    if (apiCache.userData && (now - apiCache.userDataTimestamp) < CACHE_DURATION) {
+        console.log('📦 Using cached user data for profile');
+        userData = apiCache.userData;
+    } else {
+        try {
+            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+            userData = await safeJsonParse(userRes);
+            // Update cache
+            apiCache.userData = userData;
+            apiCache.userDataTimestamp = now;
+            console.log('👤 User profile data:', userData);
+        } catch (error) {
+            console.error('❌ Error loading user data:', error);
+            // Use cached data if available, even if expired
+            if (apiCache.userData) {
+                console.log('📦 Using expired cached user data as fallback');
+                userData = apiCache.userData;
+            } else {
+                userData = { success: false };
+            }
+        }
+    }
 
         if (userData.success && userData.user) {
             const user = userData.user;
@@ -1566,13 +1766,27 @@ async function openChatFromProfile(girl) {
             console.error('❌ Failed to save selection (non-critical):', error);
         }
         
-        try {
-            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
-            const userData = await safeJsonParse(userRes);
-            sympathy = userData.user?.sympathy?.[girl._id] || 0;
-        } catch (error) {
-            console.error('❌ Failed to load sympathy (non-critical):', error);
-            sympathy = 0;
+        // Use cache for sympathy
+        const now = Date.now();
+        if (apiCache.userData && (now - apiCache.userDataTimestamp) < CACHE_DURATION) {
+            sympathy = apiCache.userData.user?.sympathy?.[girl._id] || 0;
+        } else {
+            try {
+                const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+                const userData = await safeJsonParse(userRes);
+                sympathy = userData.user?.sympathy?.[girl._id] || 0;
+                // Update cache
+                apiCache.userData = userData;
+                apiCache.userDataTimestamp = now;
+            } catch (error) {
+                console.error('❌ Failed to load sympathy (non-critical):', error);
+                // Use cached data if available
+                if (apiCache.userData) {
+                    sympathy = apiCache.userData.user?.sympathy?.[girl._id] || 0;
+                } else {
+                    sympathy = 0;
+                }
+            }
         }
         
         document.getElementById('userProfileView').style.display = 'none';
@@ -1654,16 +1868,29 @@ async function openCharacterProfile() {
     
     console.log('👤 Opening profile for:', selectedGirl.name);
     
-    // Load user entitlements first
-    try {
-        const entRes = await apiFetch(`/api/webapp/user-entitlements/${userId}`, {}, 1);
-        const entData = await safeJsonParse(entRes);
-        if (entData.success) {
-            userEntitlements = entData;
-            console.log('🔑 Entitlements loaded:', userEntitlements);
+    // Load user entitlements first (with caching)
+    const now = Date.now();
+    if (apiCache.entitlements && (now - apiCache.entitlementsTimestamp) < CACHE_DURATION) {
+        console.log('📦 Using cached entitlements');
+        userEntitlements = apiCache.entitlements;
+    } else {
+        try {
+            const entRes = await apiFetch(`/api/webapp/user-entitlements/${userId}`, {}, 1);
+            const entData = await safeJsonParse(entRes);
+            if (entData.success) {
+                userEntitlements = entData;
+                apiCache.entitlements = entData;
+                apiCache.entitlementsTimestamp = now;
+                console.log('🔑 Entitlements loaded:', userEntitlements);
+            }
+        } catch (e) {
+            console.error('Failed to load entitlements:', e);
+            // Use cached data if available
+            if (apiCache.entitlements) {
+                console.log('📦 Using expired cached entitlements as fallback');
+                userEntitlements = apiCache.entitlements;
+            }
         }
-    } catch (e) {
-        console.error('Failed to load entitlements:', e);
     }
     
     // Populate profile data
@@ -1727,7 +1954,25 @@ async function openCharacterProfile() {
         selectedGirl.photos.forEach((photoUrl, index) => {
             const item = document.createElement('div');
             item.className = 'gallery-item';
-            item.style.backgroundImage = `url('${photoUrl}')`;
+            // Use data attribute for lazy loading
+            item.setAttribute('data-bg-image', photoUrl);
+            // Only load first 3 images immediately, rest lazy load
+            if (index < 3) {
+                item.style.backgroundImage = `url('${photoUrl}')`;
+            } else {
+                // Lazy load using IntersectionObserver
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const elem = entry.target;
+                            elem.style.backgroundImage = `url('${elem.getAttribute('data-bg-image')}')`;
+                            elem.removeAttribute('data-bg-image');
+                            observer.unobserve(elem);
+                        }
+                    });
+                }, { rootMargin: '50px' });
+                observer.observe(item);
+            }
             
             // First photo always free, others check unlock status
             const isUnlocked = index === 0 || isPremium || unlockedForChar.includes(photoUrl);
