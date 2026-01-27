@@ -1044,46 +1044,50 @@ async function requestPhoto() {
 
 // Show photo modal
 function showPhoto(photoUrl, event) {
+    console.log('📸 showPhoto called with:', photoUrl, 'event:', event);
+    
     // Stop any event propagation if event is provided
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
     
-    console.log('📸 showPhoto called with:', photoUrl);
-    
     const photoModal = document.getElementById('photoModal');
     const photoImage = document.getElementById('photoImage');
-    const characterProfileView = document.getElementById('characterProfileView');
     
-    if (!photoModal || !photoImage) {
-        console.error('❌ Photo modal elements not found');
+    if (!photoModal) {
+        console.error('❌ Photo modal not found');
+        alert('Photo modal element not found!');
         return;
     }
     
-    // Set image source
-    photoImage.src = photoUrl;
-    
-    // Add class to character profile to disable pointer events (but keep gallery items clickable)
-    if (characterProfileView) {
-        characterProfileView.classList.add('modal-open');
+    if (!photoImage) {
+        console.error('❌ Photo image element not found');
+        alert('Photo image element not found!');
+        return;
     }
     
+    console.log('📸 Setting image source:', photoUrl);
+    photoImage.src = photoUrl;
+    
+    console.log('📸 Showing modal...');
     // Show modal with highest z-index
     photoModal.style.display = 'flex';
     photoModal.style.zIndex = '10000';
     photoModal.style.pointerEvents = 'auto';
+    photoModal.style.visibility = 'visible';
+    photoModal.style.opacity = '1';
     
-    // Force modal to be on top
+    // Force modal to be on top - use setTimeout to ensure it renders
     setTimeout(() => {
         if (photoModal) {
             photoModal.style.display = 'flex';
             photoModal.style.zIndex = '10000';
-            photoModal.style.visibility = 'visible';
+            console.log('📸 Modal should be visible now. Display:', photoModal.style.display, 'Z-index:', photoModal.style.zIndex);
         }
-    }, 0);
+    }, 10);
     
-    console.log('📸 Photo modal displayed, z-index:', photoModal.style.zIndex);
+    console.log('📸 Photo modal displayed');
 }
 
 // Close photo modal
@@ -1100,10 +1104,7 @@ function closePhotoModal(event) {
         console.log('📸 Photo modal closed');
     }
     
-    // Remove modal-open class from character profile
-    if (characterProfileView) {
-        characterProfileView.classList.remove('modal-open');
-    }
+    // Modal closed - no need to modify character profile
 }
 
 // Update sympathy bar
@@ -1671,22 +1672,32 @@ async function openCharacterProfile() {
     const avatarItem = document.createElement('div');
     avatarItem.className = 'gallery-item';
     avatarItem.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
-    avatarItem.onclick = (e) => {
-        console.log('📸 Avatar clicked');
-        e.stopPropagation();
-        e.preventDefault();
+    // Use both onclick and addEventListener for maximum compatibility
+    avatarItem.onclick = function(e) {
+        console.log('📸 Avatar clicked (onclick)');
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
         showPhoto(selectedGirl.avatarUrl, e);
         return false;
     };
     
+    // Also use addEventListener as backup
+    avatarItem.addEventListener('click', function(e) {
+        console.log('📸 Avatar clicked (addEventListener)');
+        e.stopPropagation();
+        e.preventDefault();
+        showPhoto(selectedGirl.avatarUrl, e);
+    }, true); // Use capture phase
+    
     // Also add touch event for mobile
-    avatarItem.ontouchstart = (e) => {
+    avatarItem.addEventListener('touchend', function(e) {
         console.log('📸 Avatar touched');
         e.stopPropagation();
         e.preventDefault();
         showPhoto(selectedGirl.avatarUrl, e);
-        return false;
-    };
+    }, true);
     galleryContainer.appendChild(avatarItem);
     
     // Add other photos from character
@@ -1700,40 +1711,60 @@ async function openCharacterProfile() {
             const isUnlocked = index === 0 || isPremium || unlockedForChar.includes(photoUrl);
             
             if (isUnlocked) {
-                item.onclick = (e) => {
-                    console.log('📸 Photo clicked:', photoUrl);
-                    e.stopPropagation();
-                    e.preventDefault();
+                // Use both onclick and addEventListener for maximum compatibility
+                item.onclick = function(e) {
+                    console.log('📸 Photo clicked (onclick):', photoUrl);
+                    if (e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
                     showPhoto(photoUrl, e);
                     return false;
                 };
                 
+                // Also use addEventListener as backup
+                item.addEventListener('click', function(e) {
+                    console.log('📸 Photo clicked (addEventListener):', photoUrl);
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showPhoto(photoUrl, e);
+                }, true); // Use capture phase
+                
                 // Also add touch event for mobile
-                item.ontouchstart = (e) => {
+                item.addEventListener('touchend', function(e) {
                     console.log('📸 Photo touched:', photoUrl);
                     e.stopPropagation();
                     e.preventDefault();
                     showPhoto(photoUrl, e);
-                    return false;
-                };
+                }, true);
             } else {
                 item.classList.add('locked');
-                item.onclick = (e) => {
-                    console.log('📸 Locked photo clicked:', photoUrl);
-                    e.stopPropagation();
-                    e.preventDefault();
+                // Use both onclick and addEventListener for maximum compatibility
+                item.onclick = function(e) {
+                    console.log('📸 Locked photo clicked (onclick):', photoUrl);
+                    if (e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }
                     handleLockedPhoto(photoUrl, e);
                     return false;
                 };
                 
+                // Also use addEventListener as backup
+                item.addEventListener('click', function(e) {
+                    console.log('📸 Locked photo clicked (addEventListener):', photoUrl);
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleLockedPhoto(photoUrl, e);
+                }, true); // Use capture phase
+                
                 // Also add touch event for mobile
-                item.ontouchstart = (e) => {
+                item.addEventListener('touchend', function(e) {
                     console.log('📸 Locked photo touched:', photoUrl);
                     e.stopPropagation();
                     e.preventDefault();
                     handleLockedPhoto(photoUrl, e);
-                    return false;
-                };
+                }, true);
             }
             
             galleryContainer.appendChild(item);
