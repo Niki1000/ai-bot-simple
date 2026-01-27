@@ -9,6 +9,36 @@ let currentGirlIndex = 0;
 let selectedGirl = null;
 let sympathy = 0;
 
+// Set Telegram user profile picture
+function setTelegramProfilePicture(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+        const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+        
+        if (tgUser.photo_url) {
+            element.innerHTML = ''; // Remove icon
+            element.style.backgroundImage = `url('${tgUser.photo_url}')`;
+            element.style.backgroundSize = 'cover';
+            element.style.backgroundPosition = 'center';
+            console.log('✅ Loaded Telegram profile picture for', elementId);
+        } else {
+            // Keep default icon if no photo
+            if (!element.innerHTML.includes('<i')) {
+                element.innerHTML = '<i class="fas fa-user"></i>';
+            }
+            element.style.backgroundImage = '';
+        }
+    } else {
+        // Fallback if Telegram API not available
+        if (!element.innerHTML.includes('<i')) {
+            element.innerHTML = '<i class="fas fa-user"></i>';
+        }
+        element.style.backgroundImage = '';
+    }
+}
+
 // Initialize
 async function initApp() {
     // Get Telegram user ID
@@ -20,6 +50,9 @@ async function initApp() {
 
         // Save to localStorage
         localStorage.setItem('telegramUserId', userId);
+        
+        // Set header avatar profile picture
+        setTelegramProfilePicture('userAvatar');
     } else {
         // Get from localStorage or use test ID
         userId = localStorage.getItem('telegramUserId') || 675257;
@@ -760,12 +793,15 @@ async function showUserProfile() {
             // Set user ID
             document.getElementById('userProfileId').textContent = `ID: ${userId}`;
             
-            // Try to get Telegram name
+            // Get Telegram user info and profile picture
             if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 const name = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : '');
                 document.getElementById('userProfileName').textContent = name || 'Пользователь';
             }
+            
+            // Set profile picture using helper function
+            setTelegramProfilePicture('userProfileAvatar');
             
             // Stats
             const matchesCount = user.likes?.length || 0;
