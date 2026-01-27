@@ -1028,7 +1028,7 @@ async function requestPhoto() {
         const data = await safeJsonParse(response);
 
         if (data.success && data.photo) {
-            showPhoto(data.photo);
+            showPhoto(data.photo, null);
             addMessage('Вот моё фото! 📸💕', 'bot');
         } else {
             const message = data.message || `Попробуй позже! Шанс: ${Math.floor(sympathy)}%`;
@@ -1043,14 +1043,49 @@ async function requestPhoto() {
 }
 
 // Show photo modal
-function showPhoto(photoUrl) {
-    document.getElementById('photoImage').src = photoUrl;
-    document.getElementById('photoModal').style.display = 'flex';
+function showPhoto(photoUrl, event) {
+    // Stop any event propagation if event is provided
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+    const photoModal = document.getElementById('photoModal');
+    const photoImage = document.getElementById('photoImage');
+    
+    if (!photoModal || !photoImage) {
+        console.error('❌ Photo modal elements not found');
+        return;
+    }
+    
+    // Set image source
+    photoImage.src = photoUrl;
+    
+    // Show modal with highest z-index
+    photoModal.style.display = 'flex';
+    photoModal.style.zIndex = '10000';
+    
+    // Ensure modal is on top of everything
+    requestAnimationFrame(() => {
+        if (photoModal) {
+            photoModal.style.zIndex = '10000';
+        }
+    });
+    
+    console.log('📸 Showing photo:', photoUrl);
 }
 
 // Close photo modal
-function closePhotoModal() {
-    document.getElementById('photoModal').style.display = 'none';
+function closePhotoModal(event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    const photoModal = document.getElementById('photoModal');
+    if (photoModal) {
+        photoModal.style.display = 'none';
+        console.log('📸 Photo modal closed');
+    }
 }
 
 // Update sympathy bar
@@ -1618,7 +1653,11 @@ async function openCharacterProfile() {
     const avatarItem = document.createElement('div');
     avatarItem.className = 'gallery-item';
     avatarItem.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
-    avatarItem.onclick = () => showPhoto(selectedGirl.avatarUrl);
+    avatarItem.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        showPhoto(selectedGirl.avatarUrl, e);
+    };
     galleryContainer.appendChild(avatarItem);
     
     // Add other photos from character
@@ -1632,10 +1671,18 @@ async function openCharacterProfile() {
             const isUnlocked = index === 0 || isPremium || unlockedForChar.includes(photoUrl);
             
             if (isUnlocked) {
-                item.onclick = () => showPhoto(photoUrl);
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showPhoto(photoUrl, e);
+                };
             } else {
                 item.classList.add('locked');
-                item.onclick = () => handleLockedPhoto(photoUrl);
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleLockedPhoto(photoUrl, e);
+                };
             }
             
             galleryContainer.appendChild(item);
@@ -1652,7 +1699,11 @@ function closeCharacterProfile() {
 }
 
 // Handle locked photo click
-async function handleLockedPhoto(photoUrl) {
+async function handleLockedPhoto(photoUrl, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
     const credits = userEntitlements.credits || 0;
     
     if (credits >= 10) {
@@ -1704,7 +1755,7 @@ async function unlockPhoto(photoUrl) {
             userEntitlements.unlockedPhotos[selectedGirl._id].push(photoUrl);
             
             // Show the photo
-            showPhoto(photoUrl);
+            showPhoto(photoUrl, null);
             
             // Refresh the gallery to update lock states
             openCharacterProfile();

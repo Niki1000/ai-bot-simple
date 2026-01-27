@@ -900,7 +900,7 @@
             bottom: 0;
             background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(10px);
-            z-index: 1000;
+            z-index: 10000;
             align-items: center;
             justify-content: center;
             padding: 20px;
@@ -1928,11 +1928,11 @@
         </div>
 
         <!-- Photo Modal -->
-        <div class="photo-modal" id="photoModal" onclick="closePhotoModal()">
-            <button class="close-modal" onclick="closePhotoModal()">
+        <div class="photo-modal" id="photoModal" onclick="closePhotoModal(event)">
+            <button class="close-modal" onclick="event.stopPropagation(); closePhotoModal(event)">
                 <i class="fas fa-times"></i>
             </button>
-            <img src="" alt="Photo" id="photoImage">
+            <img src="" alt="Photo" id="photoImage" onclick="event.stopPropagation()">
         </div>
 
     </div>
