@@ -345,9 +345,9 @@ async function openChat() {
         updateSympathyBar();
 
         if (historyData.success && historyData.history && historyData.history.length > 0) {
-            // Add all messages from history
+            // Add all messages from history with timestamps
             historyData.history.forEach(msg => {
-                addMessage(msg.message, msg.sender);
+                addMessage(msg.message, msg.sender, msg.timestamp);
             });
 
             console.log(`✅ Loaded ${historyData.history.length} messages`);
@@ -450,11 +450,18 @@ async function sendMessage() {
             })
         });
 
+        // Show typing indicator while waiting for response
+        showTypingIndicator();
+        
         const chatData = await chatRes.json();
 
         if (chatData.success && chatData.response) {
-            // 3. Add bot message to UI
+            // Simulate typing delay for more natural feel
             setTimeout(async () => {
+                // Remove typing indicator
+                removeTypingIndicator();
+                
+                // 3. Add bot message to UI
                 addMessage(chatData.response, 'bot');
 
                 // 4. Save bot message to DB
@@ -470,8 +477,9 @@ async function sendMessage() {
                 });
 
                 console.log('✅ Both messages saved');
-            }, 500);
+            }, 800 + Math.random() * 700); // Random delay 800-1500ms for realism
         } else {
+            removeTypingIndicator();
             addMessage('Ошибка получения ответа 😢', 'bot');
         }
     } catch (error) {
@@ -482,18 +490,81 @@ async function sendMessage() {
 
 
 
-// Add message to chat
-function addMessage(text, sender) {
+// Format timestamp to relative time
+function formatTimestamp(timestamp) {
+    if (!timestamp) return '';
+    
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (seconds < 60) return 'только что';
+    if (minutes < 60) return `${minutes} ${minutes === 1 ? 'мин' : 'мин'} назад`;
+    if (hours < 24) return `${hours} ${hours === 1 ? 'час' : 'часов'} назад`;
+    if (days < 7) return `${days} ${days === 1 ? 'день' : 'дней'} назад`;
+    
+    // For older messages, show date
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+// Add message to chat with timestamp
+function addMessage(text, sender, timestamp = null) {
     const container = document.getElementById('chatMessages');
+    
+    // Remove typing indicator if present
+    removeTypingIndicator();
 
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}`;
+    
+    const timeStr = timestamp ? formatTimestamp(timestamp) : formatTimestamp(new Date());
+    
     messageDiv.innerHTML = `
-        <div class="message-bubble">${text}</div>
+        <div class="message-bubble">
+            <div class="message-text">${text}</div>
+            <div class="message-time">${timeStr}</div>
+        </div>
     `;
 
     container.appendChild(messageDiv);
     container.scrollTop = container.scrollHeight;
+}
+
+// Show typing indicator
+function showTypingIndicator() {
+    const container = document.getElementById('chatMessages');
+    
+    // Remove existing typing indicator if any
+    removeTypingIndicator();
+    
+    const typingDiv = document.createElement('div');
+    typingDiv.id = 'typingIndicator';
+    typingDiv.className = 'message bot typing-indicator';
+    typingDiv.innerHTML = `
+        <div class="message-bubble typing-bubble">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="typing-text">${selectedGirl?.name || 'Она'} печатает...</div>
+        </div>
+    `;
+    
+    container.appendChild(typingDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+// Remove typing indicator
+function removeTypingIndicator() {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
 }
 
 // Request photo
