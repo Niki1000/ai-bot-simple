@@ -1050,8 +1050,11 @@ function showPhoto(photoUrl, event) {
         event.preventDefault();
     }
     
+    console.log('📸 showPhoto called with:', photoUrl);
+    
     const photoModal = document.getElementById('photoModal');
     const photoImage = document.getElementById('photoImage');
+    const characterProfileView = document.getElementById('characterProfileView');
     
     if (!photoModal || !photoImage) {
         console.error('❌ Photo modal elements not found');
@@ -1061,18 +1064,26 @@ function showPhoto(photoUrl, event) {
     // Set image source
     photoImage.src = photoUrl;
     
+    // Add class to character profile to disable pointer events (but keep gallery items clickable)
+    if (characterProfileView) {
+        characterProfileView.classList.add('modal-open');
+    }
+    
     // Show modal with highest z-index
     photoModal.style.display = 'flex';
     photoModal.style.zIndex = '10000';
+    photoModal.style.pointerEvents = 'auto';
     
-    // Ensure modal is on top of everything
-    requestAnimationFrame(() => {
+    // Force modal to be on top
+    setTimeout(() => {
         if (photoModal) {
+            photoModal.style.display = 'flex';
             photoModal.style.zIndex = '10000';
+            photoModal.style.visibility = 'visible';
         }
-    });
+    }, 0);
     
-    console.log('📸 Showing photo:', photoUrl);
+    console.log('📸 Photo modal displayed, z-index:', photoModal.style.zIndex);
 }
 
 // Close photo modal
@@ -1082,9 +1093,16 @@ function closePhotoModal(event) {
     }
     
     const photoModal = document.getElementById('photoModal');
+    const characterProfileView = document.getElementById('characterProfileView');
+    
     if (photoModal) {
         photoModal.style.display = 'none';
         console.log('📸 Photo modal closed');
+    }
+    
+    // Remove modal-open class from character profile
+    if (characterProfileView) {
+        characterProfileView.classList.remove('modal-open');
     }
 }
 
@@ -1654,9 +1672,20 @@ async function openCharacterProfile() {
     avatarItem.className = 'gallery-item';
     avatarItem.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
     avatarItem.onclick = (e) => {
+        console.log('📸 Avatar clicked');
         e.stopPropagation();
         e.preventDefault();
         showPhoto(selectedGirl.avatarUrl, e);
+        return false;
+    };
+    
+    // Also add touch event for mobile
+    avatarItem.ontouchstart = (e) => {
+        console.log('📸 Avatar touched');
+        e.stopPropagation();
+        e.preventDefault();
+        showPhoto(selectedGirl.avatarUrl, e);
+        return false;
     };
     galleryContainer.appendChild(avatarItem);
     
@@ -1672,16 +1701,38 @@ async function openCharacterProfile() {
             
             if (isUnlocked) {
                 item.onclick = (e) => {
+                    console.log('📸 Photo clicked:', photoUrl);
                     e.stopPropagation();
                     e.preventDefault();
                     showPhoto(photoUrl, e);
+                    return false;
+                };
+                
+                // Also add touch event for mobile
+                item.ontouchstart = (e) => {
+                    console.log('📸 Photo touched:', photoUrl);
+                    e.stopPropagation();
+                    e.preventDefault();
+                    showPhoto(photoUrl, e);
+                    return false;
                 };
             } else {
                 item.classList.add('locked');
                 item.onclick = (e) => {
+                    console.log('📸 Locked photo clicked:', photoUrl);
                     e.stopPropagation();
                     e.preventDefault();
                     handleLockedPhoto(photoUrl, e);
+                    return false;
+                };
+                
+                // Also add touch event for mobile
+                item.ontouchstart = (e) => {
+                    console.log('📸 Locked photo touched:', photoUrl);
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleLockedPhoto(photoUrl, e);
+                    return false;
                 };
             }
             

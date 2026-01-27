@@ -900,11 +900,12 @@
             bottom: 0;
             background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(10px);
-            z-index: 10000;
+            z-index: 10000 !important;
             align-items: center;
             justify-content: center;
             padding: 20px;
             animation: fadeIn 0.3s ease;
+            pointer-events: auto !important;
         }
 
         @keyframes fadeIn {
@@ -1236,6 +1237,15 @@
             left: 0;
             z-index: 300;
             background: linear-gradient(135deg, #1a0b2e 0%, #16213e 50%, #0f0f1e 100%);
+            pointer-events: auto;
+        }
+        
+        .character-profile-view.modal-open {
+            pointer-events: none;
+        }
+        
+        .character-profile-view.modal-open .gallery-item {
+            pointer-events: auto;
         }
 
         .profile-view-header {
@@ -1415,6 +1425,8 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             position: relative;
+            pointer-events: auto !important;
+            z-index: 1;
         }
 
         .gallery-item::before {
