@@ -8,6 +8,7 @@ let girls = [];
 let currentGirlIndex = 0;
 let selectedGirl = null;
 let sympathy = 0;
+let lastReadMessages = {}; // Track last read message timestamp per character: { characterId: timestamp }
 
 // Set Telegram user profile picture
 function setTelegramProfilePicture(elementId) {
@@ -58,9 +59,23 @@ async function initApp() {
         userId = localStorage.getItem('telegramUserId') || 675257;
     }
 
+    // Load last read messages from localStorage
+    const savedLastRead = localStorage.getItem('lastReadMessages');
+    if (savedLastRead) {
+        try {
+            lastReadMessages = JSON.parse(savedLastRead);
+        } catch (e) {
+            console.error('Failed to parse lastReadMessages:', e);
+            lastReadMessages = {};
+        }
+    }
+
     console.log('👤 User ID:', userId);
 
     await loadGirls();
+    
+    // Update matches tab notification on init
+    updateMatchesTabNotification();
 }
 
 // Call init on page load (removed duplicate - handled by DOMContentLoaded)
@@ -282,12 +297,12 @@ function swipeCard(action) {
         card.remove();
         currentGirlIndex++;
 
+        // Just render next cards (no auto-open chat)
+        renderCards();
+        
+        // Show success message for like
         if (action === 'like') {
-            // Open chat with selected girl
-            selectGirl(girl);
-        } else {
-            // Load next card
-            renderCards();
+            console.log(`✅ Liked ${girl.name} - check matches to chat!`);
         }
     }, 300);
 }
@@ -350,6 +365,14 @@ async function openChat() {
                 addMessage(msg.message, msg.sender, msg.timestamp);
             });
 
+            // Mark all messages as read (update last read timestamp)
+            const lastMessage = historyData.history[historyData.history.length - 1];
+            if (lastMessage && lastMessage.timestamp) {
+                lastReadMessages[selectedGirl._id] = new Date(lastMessage.timestamp).getTime();
+                // Save to localStorage for persistence
+                localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+            }
+
             console.log(`✅ Loaded ${historyData.history.length} messages`);
         } else {
             // No history - show welcome message and SAVE it to DB
@@ -368,6 +391,11 @@ async function openChat() {
                         sender: 'bot'
                     })
                 });
+                
+                // Mark welcome message as read since we're opening the chat
+                lastReadMessages[selectedGirl._id] = Date.now();
+                localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+                
                 console.log('✅ Welcome message saved to DB');
             } catch (saveErr) {
                 console.error('❌ Failed to save welcome message:', saveErr);
@@ -405,8 +433,74 @@ function backToSwipe() {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.nav-item')[1].classList.add('active');
 
-    // Reload matches list
+    // Reload matches list to refresh notifications
     loadMatches();
+    
+    // Update matches tab notification badge
+    updateMatchesTabNotification();
+}
+
+// Calculate total unread messages across all matches
+async function getTotalUnreadCount() {
+    try {
+        const userRes = await fetch(`/api/webapp/user/${userId}`);
+        const userData = await userRes.json();
+        
+        if (!userData.success || !userData.user) return 0;
+        
+        const user = userData.user;
+        const matchesRes = await fetch(`/api/webapp/matches/${userId}`);
+        const matchesData = await matchesRes.json();
+        
+        if (!matchesData.success) return 0;
+        
+        let totalUnread = 0;
+        
+        matchesData.matches.forEach(girl => {
+            const chatHistory = user.chatHistory?.[girl._id] || [];
+            const lastReadTime = lastReadMessages[girl._id] || 0;
+            
+            if (chatHistory.length > 0) {
+                const unread = chatHistory.filter(msg => {
+                    if (msg.sender !== 'bot') return false;
+                    const msgTime = new Date(msg.timestamp).getTime();
+                    return msgTime > lastReadTime;
+                }).length;
+                
+                totalUnread += unread;
+            } else if (chatHistory.length === 0) {
+                // Welcome message will be unread
+                totalUnread += 1;
+            }
+        });
+        
+        return totalUnread;
+    } catch (error) {
+        console.error('Error calculating unread count:', error);
+        return 0;
+    }
+}
+
+// Update notification badge on matches tab
+async function updateMatchesTabNotification() {
+    const totalUnread = await getTotalUnreadCount();
+    const matchesNavItem = document.querySelectorAll('.nav-item')[1];
+    
+    if (!matchesNavItem) return;
+    
+    // Remove existing badge
+    const existingBadge = matchesNavItem.querySelector('.nav-notification-badge');
+    if (existingBadge) {
+        existingBadge.remove();
+    }
+    
+    // Add badge if there are unread messages
+    if (totalUnread > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'nav-notification-badge';
+        badge.textContent = totalUnread > 9 ? '9+' : totalUnread;
+        matchesNavItem.appendChild(badge);
+    }
 }
 
 // Send message - FIXED to save both messages
@@ -440,7 +534,10 @@ async function sendMessage() {
             updateSympathyBar();
         }
 
-        // 2. Get AI response
+        // 2. Show typing indicator while waiting for AI response
+        showTypingIndicator();
+        
+        // Get AI response
         const chatRes = await fetch('/api/webapp/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -450,17 +547,14 @@ async function sendMessage() {
             })
         });
 
-        // Show typing indicator while waiting for response
-        showTypingIndicator();
-        
         const chatData = await chatRes.json();
+        
+        // Remove typing indicator
+        removeTypingIndicator();
 
         if (chatData.success && chatData.response) {
             // Simulate typing delay for more natural feel
             setTimeout(async () => {
-                // Remove typing indicator
-                removeTypingIndicator();
-                
                 // 3. Add bot message to UI
                 addMessage(chatData.response, 'bot');
 
@@ -476,11 +570,20 @@ async function sendMessage() {
                     })
                 });
 
+                // Mark message as read since chat is open
+                lastReadMessages[selectedGirl._id] = Date.now();
+                localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+                
+                // Update matches tab notification
+                updateMatchesTabNotification();
+
                 console.log('✅ Both messages saved');
             }, 800 + Math.random() * 700); // Random delay 800-1500ms for realism
         } else {
-            removeTypingIndicator();
-            addMessage('Ошибка получения ответа 😢', 'bot');
+            // Show error message from API or default
+            const errorMsg = chatData.response || chatData.error || 'Ошибка получения ответа 😢';
+            addMessage(errorMsg, 'bot');
+            console.error('❌ Chat API error:', chatData.error || 'Unknown error');
         }
     } catch (error) {
         console.error('❌ Error sending message:', error);
@@ -725,7 +828,11 @@ function showMatches() {
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     document.querySelectorAll('.nav-item')[1].classList.add('active');
 
+    // Reload matches to show updated notifications
     loadMatches();
+    
+    // Update matches tab notification badge
+    updateMatchesTabNotification();
 }
 
 // Navigate back to swipe
@@ -779,9 +886,32 @@ async function loadMatches() {
             // Get last message from chat history, or fall back to welcome message
             const chatHistory = userData.user?.chatHistory?.[girl._id] || [];
             let lastMessage = girl.welcomeMessage || 'Привет! 💕';
+            let lastMessageTime = null;
             if (chatHistory.length > 0) {
                 const lastMsg = chatHistory[chatHistory.length - 1];
                 lastMessage = lastMsg.message;
+                lastMessageTime = lastMsg.timestamp;
+            }
+            
+            // Calculate unread messages (bot messages after last read)
+            const lastReadTime = lastReadMessages[girl._id] || 0;
+            let unreadCount = 0;
+            
+            if (chatHistory.length > 0) {
+                if (lastReadTime > 0) {
+                    // Count bot messages after last read time
+                    unreadCount = chatHistory.filter(msg => {
+                        if (msg.sender !== 'bot') return false;
+                        const msgTime = new Date(msg.timestamp).getTime();
+                        return msgTime > lastReadTime;
+                    }).length;
+                } else {
+                    // If never read, count all bot messages (including welcome)
+                    unreadCount = chatHistory.filter(msg => msg.sender === 'bot').length;
+                }
+            } else {
+                // No chat history yet - welcome message will be unread when it's sent
+                unreadCount = 0;
             }
             
             // Truncate long messages for preview
@@ -791,12 +921,20 @@ async function loadMatches() {
 
             const card = document.createElement('div');
             card.className = 'match-card';
+            if (unreadCount > 0) {
+                card.classList.add('has-notification');
+            }
             card.onclick = () => selectGirlFromMatches(girl);
 
             card.innerHTML = `
-                <div class="match-avatar" style="background-image: url('${girl.avatarUrl}')"></div>
+                <div class="match-avatar" style="background-image: url('${girl.avatarUrl}')">
+                    ${unreadCount > 0 ? `<div class="notification-badge">${unreadCount > 9 ? '9+' : unreadCount}</div>` : ''}
+                </div>
                 <div class="match-info">
-                    <div class="match-name">${girl.name}</div>
+                    <div class="match-name">
+                        ${girl.name}
+                        ${unreadCount > 0 ? '<span class="notification-dot"></span>' : ''}
+                    </div>
                     <div class="match-age">${girl.age} лет</div>
                     <div class="match-preview">${lastMessage}</div>
                 </div>

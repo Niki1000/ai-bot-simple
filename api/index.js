@@ -324,6 +324,16 @@ app.post('/api/webapp/chat', async (req, res) => {
       return res.json({ success: false, error: 'Character not found' });
     }
 
+    // Check if API key is configured
+    if (!process.env.DEEPSEEK_API_KEY) {
+      console.error('❌ DEEPSEEK_API_KEY not configured');
+      return res.json({ 
+        success: false, 
+        error: 'AI API not configured. Please set DEEPSEEK_API_KEY environment variable.',
+        response: 'Извини, AI временно недоступен 😢'
+      });
+    }
+
     const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -357,12 +367,26 @@ app.post('/api/webapp/chat', async (req, res) => {
       })
     });
 
+    if (!deepseekRes.ok) {
+      const errorData = await deepseekRes.json().catch(() => ({}));
+      console.error('❌ DeepSeek API error:', deepseekRes.status, errorData);
+      return res.json({ 
+        success: false, 
+        error: 'AI API error',
+        response: 'Извини, произошла ошибка при генерации ответа 😢'
+      });
+    }
+
     const data = await deepseekRes.json();
     const response = data.choices?.[0]?.message?.content || 'Хм... 🤔';
     res.json({ success: true, response });
   } catch (e) {
     console.error('❌ Chat error:', e);
-    res.json({ success: true, response: 'Ой... 😅' });
+    res.json({ 
+      success: false, 
+      error: e.message,
+      response: 'Ой... произошла ошибка 😅' 
+    });
   }
 });
 
