@@ -1054,6 +1054,7 @@ function showPhoto(photoUrl, event) {
     
     const photoModal = document.getElementById('photoModal');
     const photoImage = document.getElementById('photoImage');
+    const characterProfileView = document.getElementById('characterProfileView');
     
     if (!photoModal) {
         console.error('❌ Photo modal not found');
@@ -1070,6 +1071,12 @@ function showPhoto(photoUrl, event) {
     console.log('📸 Setting image source:', photoUrl);
     photoImage.src = photoUrl;
     
+    // Temporarily lower the character profile view's z-index so modal appears on top
+    if (characterProfileView && characterProfileView.style.display === 'flex') {
+        console.log('📸 Lowering character profile z-index');
+        characterProfileView.style.zIndex = '200'; // Lower than modal
+    }
+    
     console.log('📸 Showing modal...');
     // Show modal with highest z-index
     photoModal.style.display = 'flex';
@@ -1077,12 +1084,21 @@ function showPhoto(photoUrl, event) {
     photoModal.style.pointerEvents = 'auto';
     photoModal.style.visibility = 'visible';
     photoModal.style.opacity = '1';
+    photoModal.style.position = 'fixed';
+    
+    // Move modal to body level to escape any stacking context from character profile
+    const currentParent = photoModal.parentElement;
+    if (currentParent && currentParent !== document.body) {
+        document.body.appendChild(photoModal);
+        console.log('📸 Moved modal to body level to escape stacking context');
+    }
     
     // Force modal to be on top - use setTimeout to ensure it renders
     setTimeout(() => {
         if (photoModal) {
             photoModal.style.display = 'flex';
             photoModal.style.zIndex = '10000';
+            photoModal.style.position = 'fixed';
             console.log('📸 Modal should be visible now. Display:', photoModal.style.display, 'Z-index:', photoModal.style.zIndex);
         }
     }, 10);
@@ -1102,6 +1118,12 @@ function closePhotoModal(event) {
     if (photoModal) {
         photoModal.style.display = 'none';
         console.log('📸 Photo modal closed');
+    }
+    
+    // Restore character profile z-index
+    if (characterProfileView && characterProfileView.style.display === 'flex') {
+        characterProfileView.style.zIndex = '300'; // Restore original z-index
+        console.log('📸 Restored character profile z-index to 300');
     }
     
     // Modal closed - no need to modify character profile
