@@ -10,6 +10,113 @@ let selectedGirl = null;
 let sympathy = 0;
 let lastReadMessages = {}; // Track last read message timestamp per character: { characterId: timestamp }
 
+// ==================== API UTILITY FUNCTIONS ====================
+
+/**
+ * Enhanced fetch with retry logic and error handling
+ * @param {string} url - API endpoint
+ * @param {object} options - Fetch options
+ * @param {number} maxRetries - Maximum retry attempts (default: 2)
+ * @returns {Promise<Response>}
+ */
+async function apiFetch(url, options = {}, maxRetries = 2) {
+    let lastError;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            
+            // Check if response is ok (status 200-299)
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch {
+                    errorData = { error: errorText || `HTTP ${response.status}` };
+                }
+                
+                // Don't retry on client errors (4xx), only on server errors (5xx) or network issues
+                if (response.status >= 400 && response.status < 500 && attempt < maxRetries) {
+                    // Client error - retry once more
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+                    continue;
+                }
+                
+                throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            return response;
+        } catch (error) {
+            lastError = error;
+            
+            // Network error or timeout - retry
+            if (attempt < maxRetries && (
+                error.name === 'TypeError' || // Network error
+                error.message.includes('Failed to fetch') ||
+                error.message.includes('NetworkError')
+            )) {
+                const delay = 1000 * (attempt + 1); // Exponential backoff
+                console.warn(`⚠️ API call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms...`, error.message);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            
+            // If it's the last attempt or not a network error, throw
+            throw error;
+        }
+    }
+    
+    throw lastError;
+}
+
+/**
+ * Safe JSON parsing with error handling
+ * @param {Response} response - Fetch response object
+ * @returns {Promise<object>}
+ */
+async function safeJsonParse(response) {
+    try {
+        const text = await response.text();
+        if (!text) {
+            return { success: false, error: 'Empty response from server' };
+        }
+        return JSON.parse(text);
+    } catch (error) {
+        console.error('❌ JSON parse error:', error);
+        return { success: false, error: 'Invalid response format from server' };
+    }
+}
+
+/**
+ * Show user-friendly error message
+ * @param {string} message - Error message
+ * @param {boolean} isNetworkError - Whether it's a network error
+ */
+function showError(message, isNetworkError = false) {
+    const errorMsg = isNetworkError 
+        ? 'Проблема с интернетом. Проверьте соединение и попробуйте снова.'
+        : message || 'Произошла ошибка. Попробуйте позже.';
+    
+    if (window.Telegram?.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.showAlert(errorMsg);
+    } else {
+        // Fallback for non-Telegram environment
+        alert(errorMsg);
+    }
+    
+    console.error('❌ Error:', message);
+}
+
+// ==================== END API UTILITIES ====================
+
 // Set Telegram user profile picture
 function setTelegramProfilePicture(elementId) {
     const element = document.getElementById(elementId);
@@ -96,13 +203,13 @@ async function loadGirls() {
 
         // Pass telegramId to filter out already liked characters with chat history
         const url = `/api/webapp/characters${userId ? `?telegramId=${userId}` : ''}`;
-        const response = await fetch(url);
-        const data = await response.json();
+        const response = await apiFetch(url);
+        const data = await safeJsonParse(response);
 
         console.log('📦 Response:', data);
 
         if (!data.success) {
-            throw new Error(data.error || 'Failed to load');
+            throw new Error(data.error || 'Failed to load characters');
         }
 
         girls = data.characters || [];
@@ -115,6 +222,9 @@ async function loadGirls() {
                     <div style="color: white; text-align: center; padding: 40px;">
                         <h3>😢 Нет девушек</h3>
                         <p>Проверьте базу данных</p>
+                        <button onclick="loadGirls()" style="background: #f093fb; border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 20px; cursor: pointer;">
+                            Обновить
+                        </button>
                     </div>
                 `;
             }
@@ -125,12 +235,16 @@ async function loadGirls() {
         console.error('❌ Load error:', error);
         const swipeView = document.getElementById('swipeView');
         if (swipeView) {
+            const isNetworkError = error.message.includes('fetch') || error.message.includes('Network');
             swipeView.innerHTML = `
                 <div style="color: white; text-align: center; padding: 40px;">
-                    <h3>❌ Ошибка</h3>
-                    <p>${error.message}</p>
-                    <button onclick="location.reload()" style="background: #f093fb; border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 20px; cursor: pointer;">
-                        Перезагрузить
+                    <h3>❌ ${isNetworkError ? 'Проблема с интернетом' : 'Ошибка загрузки'}</h3>
+                    <p>${isNetworkError ? 'Проверьте соединение и попробуйте снова' : error.message}</p>
+                    <button onclick="loadGirls()" style="background: #f093fb; border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 20px; cursor: pointer;">
+                        Попробовать снова
+                    </button>
+                    <button onclick="location.reload()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px; color: white; margin-top: 10px; cursor: pointer;">
+                        Перезагрузить страницу
                     </button>
                 </div>
             `;
@@ -282,16 +396,18 @@ function swipeCard(action) {
         card.classList.add('swipe-left');
     }
 
-    // Save to backend
-    fetch('/api/webapp/match', {
+    // Save to backend (non-blocking - don't wait for response)
+    apiFetch('/api/webapp/match', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             telegramId: userId,
             characterId: girlId,
             action: action
         })
-    }).catch(err => console.error('Match save error:', err));
+    }, 1).catch(err => {
+        console.error('❌ Match save error (non-critical):', err);
+        // Don't show error to user - swipe animation already happened
+    });
 
     setTimeout(() => {
         card.remove();
@@ -313,24 +429,33 @@ async function selectGirl(girl) {
     selectedGirl = girl;
 
     try {
-        // Save selection to backend
-        await fetch('/api/webapp/select-character', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                characterId: girl._id
-            })
-        });
+        // Save selection to backend (non-blocking)
+        try {
+            await apiFetch('/api/webapp/select-character', {
+                method: 'POST',
+                body: JSON.stringify({
+                    telegramId: userId,
+                    characterId: girl._id
+                })
+            }, 1);
+        } catch (error) {
+            console.error('❌ Failed to save selection (non-critical):', error);
+        }
 
-        // Load sympathy
-        const userRes = await fetch(`/api/webapp/user/${userId}`);
-        const userData = await userRes.json();
-        sympathy = userData.user?.sympathy?.[girl._id] || 0;
+        // Load sympathy (non-blocking - use default if fails)
+        try {
+            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+            const userData = await safeJsonParse(userRes);
+            sympathy = userData.user?.sympathy?.[girl._id] || 0;
+        } catch (error) {
+            console.error('❌ Failed to load sympathy (non-critical):', error);
+            sympathy = 0;
+        }
 
         openChat();
     } catch (error) {
-        console.error('Error selecting girl:', error);
+        console.error('❌ Unexpected error selecting girl:', error);
+        // Still open chat even if selection save fails
         openChat();
     }
 }
@@ -351,8 +476,17 @@ async function openChat() {
 
     try {
         // Load chat history from DB
-        const historyRes = await fetch(`/api/webapp/chat-history/${userId}/${selectedGirl._id}`);
-        const historyData = await historyRes.json();
+        let historyData;
+        try {
+            const historyRes = await apiFetch(`/api/webapp/chat-history/${userId}/${selectedGirl._id}`);
+            historyData = await safeJsonParse(historyRes);
+        } catch (error) {
+            console.error('❌ Error loading chat history:', error);
+            // Show welcome message even if history load fails
+            const welcomeMsg = selectedGirl.welcomeMessage || 'Привет! 💕';
+            addMessage(welcomeMsg, 'bot');
+            return;
+        }
 
         console.log('📜 Loaded history:', historyData);
 
@@ -379,18 +513,17 @@ async function openChat() {
             const welcomeMsg = selectedGirl.welcomeMessage || 'Привет! 💕';
             addMessage(welcomeMsg, 'bot');
             
-            // Save welcome message to DB so it persists
+            // Save welcome message to DB so it persists (non-blocking)
             try {
-                await fetch('/api/webapp/save-message', {
+                await apiFetch('/api/webapp/save-message', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         telegramId: userId,
                         characterId: selectedGirl._id,
                         message: welcomeMsg,
                         sender: 'bot'
                     })
-                });
+                }, 1); // Only 1 retry for welcome message
                 
                 // Mark welcome message as read since we're opening the chat
                 lastReadMessages[selectedGirl._id] = Date.now();
@@ -398,7 +531,8 @@ async function openChat() {
                 
                 console.log('✅ Welcome message saved to DB');
             } catch (saveErr) {
-                console.error('❌ Failed to save welcome message:', saveErr);
+                console.error('❌ Failed to save welcome message (non-critical):', saveErr);
+                // Don't show error - welcome message is already displayed
             }
         }
 
@@ -408,7 +542,8 @@ async function openChat() {
         }, 100);
 
     } catch (error) {
-        console.error('❌ Error loading history:', error);
+        console.error('❌ Unexpected error in openChat:', error);
+        // Fallback: show welcome message
         addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
     }
 }
@@ -443,14 +578,14 @@ function backToSwipe() {
 // Calculate total unread messages across all matches
 async function getTotalUnreadCount() {
     try {
-        const userRes = await fetch(`/api/webapp/user/${userId}`);
-        const userData = await userRes.json();
+        const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+        const userData = await safeJsonParse(userRes);
         
         if (!userData.success || !userData.user) return 0;
         
         const user = userData.user;
-        const matchesRes = await fetch(`/api/webapp/matches/${userId}`);
-        const matchesData = await matchesRes.json();
+        const matchesRes = await apiFetch(`/api/webapp/matches/${userId}`, {}, 1);
+        const matchesData = await safeJsonParse(matchesRes);
         
         if (!matchesData.success) return 0;
         
@@ -510,24 +645,32 @@ async function sendMessage() {
 
     if (!message || !selectedGirl) return;
 
-    // Add user message to UI
+    // Add user message to UI immediately
     addMessage(message, 'user');
     input.value = '';
+    
+    // Disable input while processing
+    input.disabled = true;
 
     try {
         // 1. Save user message to DB
-        const saveUserRes = await fetch('/api/webapp/save-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                characterId: selectedGirl._id,
-                message: message,
-                sender: 'user'
-            })
-        });
-
-        const saveUserData = await saveUserRes.json();
+        let saveUserData;
+        try {
+            const saveUserRes = await apiFetch('/api/webapp/save-message', {
+                method: 'POST',
+                body: JSON.stringify({
+                    telegramId: userId,
+                    characterId: selectedGirl._id,
+                    message: message,
+                    sender: 'user'
+                })
+            });
+            saveUserData = await safeJsonParse(saveUserRes);
+        } catch (error) {
+            console.error('❌ Failed to save user message:', error);
+            // Continue anyway - user message is already in UI
+            saveUserData = { success: false };
+        }
 
         if (saveUserData.success && saveUserData.sympathy !== undefined) {
             sympathy = saveUserData.sympathy;
@@ -538,16 +681,25 @@ async function sendMessage() {
         showTypingIndicator();
         
         // Get AI response
-        const chatRes = await fetch('/api/webapp/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                message: message
-            })
-        });
-
-        const chatData = await chatRes.json();
+        let chatData;
+        try {
+            const chatRes = await apiFetch('/api/webapp/chat', {
+                method: 'POST',
+                body: JSON.stringify({
+                    telegramId: userId,
+                    message: message
+                })
+            });
+            chatData = await safeJsonParse(chatRes);
+        } catch (error) {
+            // Network or API error
+            const isNetworkError = error.message.includes('fetch') || error.message.includes('Network');
+            removeTypingIndicator();
+            showError(isNetworkError ? 'Проблема с интернетом' : 'Ошибка получения ответа от AI', isNetworkError);
+            addMessage('Извини, не могу ответить сейчас. Попробуй позже 😢', 'bot');
+            input.disabled = false;
+            return;
+        }
         
         // Remove typing indicator
         removeTypingIndicator();
@@ -558,17 +710,21 @@ async function sendMessage() {
                 // 3. Add bot message to UI
                 addMessage(chatData.response, 'bot');
 
-                // 4. Save bot message to DB
-                await fetch('/api/webapp/save-message', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        telegramId: userId,
-                        characterId: selectedGirl._id,
-                        message: chatData.response,
-                        sender: 'bot'
-                    })
-                });
+                // 4. Save bot message to DB (non-blocking - don't fail if this errors)
+                try {
+                    await apiFetch('/api/webapp/save-message', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            telegramId: userId,
+                            characterId: selectedGirl._id,
+                            message: chatData.response,
+                            sender: 'bot'
+                        })
+                    }, 1); // Only 1 retry for saving bot message
+                } catch (saveError) {
+                    console.error('❌ Failed to save bot message (non-critical):', saveError);
+                    // Don't show error to user - message is already displayed
+                }
 
                 // Mark message as read since chat is open
                 lastReadMessages[selectedGirl._id] = Date.now();
@@ -577,7 +733,7 @@ async function sendMessage() {
                 // Update matches tab notification
                 updateMatchesTabNotification();
 
-                console.log('✅ Both messages saved');
+                console.log('✅ Message sent and saved');
             }, 800 + Math.random() * 700); // Random delay 800-1500ms for realism
         } else {
             // Show error message from API or default
@@ -586,8 +742,15 @@ async function sendMessage() {
             console.error('❌ Chat API error:', chatData.error || 'Unknown error');
         }
     } catch (error) {
-        console.error('❌ Error sending message:', error);
-        addMessage('Ошибка отправки 😢', 'bot');
+        console.error('❌ Unexpected error sending message:', error);
+        removeTypingIndicator();
+        const isNetworkError = error.message.includes('fetch') || error.message.includes('Network');
+        showError('Ошибка отправки сообщения', isNetworkError);
+        addMessage('Не удалось отправить сообщение. Попробуй еще раз 😢', 'bot');
+    } finally {
+        // Re-enable input
+        input.disabled = false;
+        input.focus();
     }
 }
 
@@ -733,36 +896,28 @@ async function requestPhoto() {
     }
 
     try {
-        const response = await fetch('/api/webapp/request-photo', {
+        const response = await apiFetch('/api/webapp/request-photo', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 telegramId: userId,
                 characterId: selectedGirl._id
             })
         });
 
-        const data = await response.json();
+        const data = await safeJsonParse(response);
 
         if (data.success && data.photo) {
             showPhoto(data.photo);
             addMessage('Вот моё фото! 📸💕', 'bot');
         } else {
             const message = data.message || `Попробуй позже! Шанс: ${Math.floor(sympathy)}%`;
-            if (window.Telegram?.WebApp) {
-                tg.showAlert(message);
-            } else {
-                alert(message);
-            }
+            showError(message, false);
             addMessage(data.message || 'Пока не готова делиться фото 🙈', 'bot');
         }
     } catch (error) {
-        console.error('Error requesting photo:', error);
-        if (window.Telegram?.WebApp) {
-            tg.showAlert('Ошибка запроса фото');
-        } else {
-            alert('Ошибка запроса фото');
-        }
+        console.error('❌ Error requesting photo:', error);
+        const isNetworkError = error.message.includes('fetch') || error.message.includes('Network');
+        showError('Ошибка запроса фото', isNetworkError);
     }
 }
 
@@ -858,8 +1013,17 @@ async function loadMatches() {
         document.getElementById('matchesLoading').style.display = 'block';
         document.getElementById('noMatches').style.display = 'none';
 
-        const matchesRes = await fetch(`/api/webapp/matches/${userId}`);
-        const matchesData = await matchesRes.json();
+        let matchesData;
+        try {
+            const matchesRes = await apiFetch(`/api/webapp/matches/${userId}`);
+            matchesData = await safeJsonParse(matchesRes);
+        } catch (error) {
+            console.error('❌ Error loading matches:', error);
+            document.getElementById('matchesLoading').style.display = 'none';
+            const isNetworkError = error.message.includes('fetch') || error.message.includes('Network');
+            showError(isNetworkError ? 'Проблема с интернетом при загрузке совпадений' : 'Ошибка загрузки совпадений', isNetworkError);
+            return;
+        }
 
         console.log('📦 Matches response:', matchesData);
 
@@ -875,8 +1039,15 @@ async function loadMatches() {
         const existingCards = matchesList.querySelectorAll('.match-card');
         existingCards.forEach(card => card.remove());
 
-        const userRes = await fetch(`/api/webapp/user/${userId}`);
-        const userData = await userRes.json();
+        let userData;
+        try {
+            const userRes = await apiFetch(`/api/webapp/user/${userId}`);
+            userData = await safeJsonParse(userRes);
+        } catch (error) {
+            console.error('❌ Error loading user data:', error);
+            // Continue with matches even if user data fails - use defaults
+            userData = { success: true, user: {} };
+        }
 
         console.log('👤 User data:', userData);
 
@@ -954,9 +1125,12 @@ async function loadMatches() {
         document.getElementById('matchesLoading').style.display = 'none';
 
     } catch (error) {
-        console.error('❌ Error loading matches:', error);
-        document.getElementById('noMatches').style.display = 'block';
+        console.error('❌ Unexpected error in loadMatches:', error);
         document.getElementById('matchesLoading').style.display = 'none';
+        const isNetworkError = error.message.includes('fetch') || error.message.includes('Network');
+        showError('Ошибка загрузки совпадений', isNetworkError);
+        // Show empty state as fallback
+        document.getElementById('noMatches').style.display = 'block';
     }
 }
 
@@ -967,18 +1141,26 @@ async function selectGirlFromMatches(girl) {
     selectedGirl = girl;
 
     try {
-        await fetch('/api/webapp/select-character', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                characterId: girl._id
-            })
-        });
+        try {
+            await apiFetch('/api/webapp/select-character', {
+                method: 'POST',
+                body: JSON.stringify({
+                    telegramId: userId,
+                    characterId: girl._id
+                })
+            }, 1);
+        } catch (error) {
+            console.error('❌ Failed to save selection (non-critical):', error);
+        }
 
-        const userRes = await fetch(`/api/webapp/user/${userId}`);
-        const userData = await userRes.json();
-        sympathy = userData.user?.sympathy?.[girl._id] || 0;
+        try {
+            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+            const userData = await safeJsonParse(userRes);
+            sympathy = userData.user?.sympathy?.[girl._id] || 0;
+        } catch (error) {
+            console.error('❌ Failed to load sympathy (non-critical):', error);
+            sympathy = 0;
+        }
 
         // Hide matches, show chat
         document.getElementById('matchesView').style.display = 'none';
@@ -1047,8 +1229,8 @@ async function showUserProfile() {
 
     // Load user data
     try {
-        const userRes = await fetch(`/api/webapp/user/${userId}`);
-        const userData = await userRes.json();
+        const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+        const userData = await safeJsonParse(userRes);
 
         console.log('👤 User profile data:', userData);
 
@@ -1124,8 +1306,8 @@ async function loadRecentChats(user) {
     
     try {
         // Get matches data
-        const matchesRes = await fetch(`/api/webapp/matches/${userId}`);
-        const matchesData = await matchesRes.json();
+        const matchesRes = await apiFetch(`/api/webapp/matches/${userId}`, {}, 1);
+        const matchesData = await safeJsonParse(matchesRes);
         
         if (!matchesData.success || matchesData.matches.length === 0) {
             container.innerHTML = '<div class="no-recent">Начни общение с девушками!</div>';
@@ -1175,18 +1357,26 @@ async function openChatFromProfile(girl) {
     selectedGirl = girl;
     
     try {
-        await fetch('/api/webapp/select-character', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                characterId: girl._id
-            })
-        });
+        try {
+            await apiFetch('/api/webapp/select-character', {
+                method: 'POST',
+                body: JSON.stringify({
+                    telegramId: userId,
+                    characterId: girl._id
+                })
+            }, 1);
+        } catch (error) {
+            console.error('❌ Failed to save selection (non-critical):', error);
+        }
         
-        const userRes = await fetch(`/api/webapp/user/${userId}`);
-        const userData = await userRes.json();
-        sympathy = userData.user?.sympathy?.[girl._id] || 0;
+        try {
+            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+            const userData = await safeJsonParse(userRes);
+            sympathy = userData.user?.sympathy?.[girl._id] || 0;
+        } catch (error) {
+            console.error('❌ Failed to load sympathy (non-critical):', error);
+            sympathy = 0;
+        }
         
         document.getElementById('userProfileView').style.display = 'none';
         openChat();
@@ -1211,16 +1401,15 @@ function showUpgradeModal() {
 // Get test credits (demo function)
 async function getTestCredits() {
     try {
-        const res = await fetch('/api/webapp/add-credits', {
+        const res = await apiFetch('/api/webapp/add-credits', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 telegramId: userId,
                 amount: 50
             })
         });
         
-        const data = await res.json();
+        const data = await safeJsonParse(res);
         
         if (data.success) {
             // Update local cache
@@ -1270,8 +1459,8 @@ async function openCharacterProfile() {
     
     // Load user entitlements first
     try {
-        const entRes = await fetch(`/api/webapp/user-entitlements/${userId}`);
-        const entData = await entRes.json();
+        const entRes = await apiFetch(`/api/webapp/user-entitlements/${userId}`, {}, 1);
+        const entData = await safeJsonParse(entRes);
         if (entData.success) {
             userEntitlements = entData;
             console.log('🔑 Entitlements loaded:', userEntitlements);
@@ -1374,9 +1563,8 @@ async function handleLockedPhoto(photoUrl) {
 // Unlock photo
 async function unlockPhoto(photoUrl) {
     try {
-        const res = await fetch('/api/webapp/unlock-photo', {
+        const res = await apiFetch('/api/webapp/unlock-photo', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 telegramId: userId,
                 characterId: selectedGirl._id,
@@ -1384,7 +1572,7 @@ async function unlockPhoto(photoUrl) {
             })
         });
         
-        const data = await res.json();
+        const data = await safeJsonParse(res);
         
         if (data.success) {
             // Update local entitlements
