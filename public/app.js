@@ -9,6 +9,7 @@ let currentGirlIndex = 0;
 let selectedGirl = null;
 let sympathy = 0;
 let lastReadMessages = {}; // Track last read message timestamp per character: { characterId: timestamp }
+let isChatLoading = false; // Prevent multiple simultaneous chat loads
 
 // ==================== API UTILITY FUNCTIONS ====================
 
@@ -462,6 +463,19 @@ async function selectGirl(girl) {
 
 // Open chat - FIXED history loading
 async function openChat() {
+    // Prevent multiple simultaneous calls
+    if (isChatLoading) {
+        console.log('⚠️ Chat is already loading, skipping...');
+        return;
+    }
+
+    if (!selectedGirl) {
+        console.error('❌ No selected girl');
+        return;
+    }
+
+    isChatLoading = true;
+
     document.getElementById('swipeView').style.display = 'none';
     document.getElementById('actionButtons').style.display = 'none';
     document.getElementById('matchesView').style.display = 'none';
@@ -495,9 +509,44 @@ async function openChat() {
 
         if (historyData.success && historyData.history && historyData.history.length > 0) {
             // Add all messages from history with timestamps
-            historyData.history.forEach(msg => {
-                addMessage(msg.message, msg.sender, msg.timestamp);
+            // Use requestAnimationFrame to batch DOM updates and prevent flickering
+            const fragment = document.createDocumentFragment();
+            
+            historyData.history.forEach((msg, index) => {
+                // Create message element
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${msg.sender}`;
+                
+                const timeStr = msg.timestamp ? formatTimestamp(msg.timestamp) : formatTimestamp(new Date());
+                
+                // Parse thoughts and message for bot messages
+                let messageContent = '';
+                if (msg.sender === 'bot') {
+                    const parsed = parseThoughtsAndMessage(msg.message);
+                    if (parsed.hasThoughts) {
+                        messageContent = `
+                            <div class="message-thoughts">${parsed.thoughts}</div>
+                            <div class="message-text">${parsed.message}</div>
+                        `;
+                    } else {
+                        messageContent = `<div class="message-text">${parsed.message}</div>`;
+                    }
+                } else {
+                    messageContent = `<div class="message-text">${msg.message}</div>`;
+                }
+                
+                messageDiv.innerHTML = `
+                    <div class="message-bubble">
+                        ${messageContent}
+                        <div class="message-time">${timeStr}</div>
+                    </div>
+                `;
+                
+                fragment.appendChild(messageDiv);
             });
+            
+            // Append all messages at once to prevent flickering
+            messagesContainer.appendChild(fragment);
 
             // Mark all messages as read (update last read timestamp)
             const lastMessage = historyData.history[historyData.history.length - 1];
@@ -506,6 +555,11 @@ async function openChat() {
                 // Save to localStorage for persistence
                 localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
             }
+
+            // Scroll to bottom after messages are added
+            setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 50);
 
             console.log(`✅ Loaded ${historyData.history.length} messages`);
         } else {
@@ -536,15 +590,20 @@ async function openChat() {
             }
         }
 
-        // Scroll to bottom
-        setTimeout(() => {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, 100);
+        // Scroll to bottom (only if no history was loaded, as history loading handles its own scroll)
+        if (!historyData.success || !historyData.history || historyData.history.length === 0) {
+            setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 100);
+        }
 
     } catch (error) {
         console.error('❌ Unexpected error in openChat:', error);
         // Fallback: show welcome message
         addMessage(selectedGirl.welcomeMessage || 'Привет! 💕', 'bot');
+    } finally {
+        // Always reset loading flag
+        isChatLoading = false;
     }
 }
 
@@ -814,6 +873,11 @@ function parseThoughtsAndMessage(text) {
 function addMessage(text, sender, timestamp = null) {
     const container = document.getElementById('chatMessages');
     
+    if (!container) {
+        console.error('❌ Chat messages container not found');
+        return;
+    }
+    
     // Remove typing indicator if present
     removeTypingIndicator();
 
@@ -845,8 +909,16 @@ function addMessage(text, sender, timestamp = null) {
         </div>
     `;
 
-    container.appendChild(messageDiv);
-    container.scrollTop = container.scrollHeight;
+    // Ensure container still exists before appending
+    if (container && container.parentNode) {
+        container.appendChild(messageDiv);
+        // Use requestAnimationFrame for smooth scrolling
+        requestAnimationFrame(() => {
+            container.scrollTop = container.scrollHeight;
+        });
+    } else {
+        console.error('❌ Chat container was removed before message could be added');
+    }
 }
 
 // Show typing indicator
