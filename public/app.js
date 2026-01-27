@@ -484,9 +484,22 @@ async function openChat() {
     document.getElementById('chatGirlName').textContent = selectedGirl.name;
     document.getElementById('chatGirlAvatar').style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
 
-    // Clear existing messages
+    // Clear existing messages - but only if we're actually switching to a different girl
     const messagesContainer = document.getElementById('chatMessages');
+    if (!messagesContainer) {
+        console.error('❌ Chat messages container not found');
+        isChatLoading = false;
+        return;
+    }
+    
+    // Store current girl ID to check if we're switching
+    const currentGirlId = selectedGirl?._id;
+    
+    // Clear messages only if container exists
     messagesContainer.innerHTML = '';
+    
+    // Add a small delay to ensure DOM is ready before loading
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     try {
         // Load chat history from DB
@@ -508,9 +521,23 @@ async function openChat() {
         updateSympathyBar();
 
         if (historyData.success && historyData.history && historyData.history.length > 0) {
+            // Double-check we still have the right girl selected
+            if (!selectedGirl || selectedGirl._id !== currentGirlId) {
+                console.warn('⚠️ Selected girl changed during load, aborting message load');
+                isChatLoading = false;
+                return;
+            }
+            
+            // Verify container still exists
+            if (!messagesContainer || !messagesContainer.parentNode) {
+                console.error('❌ Messages container removed during load');
+                isChatLoading = false;
+                return;
+            }
+            
             // Add all messages from history with timestamps
-            // Use requestAnimationFrame to batch DOM updates and prevent flickering
-            const fragment = document.createDocumentFragment();
+            // Build messages synchronously first
+            const messageElements = [];
             
             historyData.history.forEach((msg, index) => {
                 // Create message element
@@ -542,26 +569,41 @@ async function openChat() {
                     </div>
                 `;
                 
-                fragment.appendChild(messageDiv);
+                // Mark as loaded to ensure visibility
+                messageDiv.classList.add('loaded');
+                messageElements.push(messageDiv);
             });
             
-            // Append all messages at once to prevent flickering
-            messagesContainer.appendChild(fragment);
+            // Append all messages at once - directly, no async
+            if (messagesContainer && messagesContainer.parentNode) {
+                messageElements.forEach(msgEl => {
+                    // Force immediate visibility before appending
+                    msgEl.style.opacity = '1';
+                    messagesContainer.appendChild(msgEl);
+                });
+                
+                // Force a reflow to ensure messages are rendered
+                messagesContainer.offsetHeight;
+                
+                // Mark all messages as read (update last read timestamp)
+                const lastMessage = historyData.history[historyData.history.length - 1];
+                if (lastMessage && lastMessage.timestamp) {
+                    lastReadMessages[selectedGirl._id] = new Date(lastMessage.timestamp).getTime();
+                    // Save to localStorage for persistence
+                    localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+                }
 
-            // Mark all messages as read (update last read timestamp)
-            const lastMessage = historyData.history[historyData.history.length - 1];
-            if (lastMessage && lastMessage.timestamp) {
-                lastReadMessages[selectedGirl._id] = new Date(lastMessage.timestamp).getTime();
-                // Save to localStorage for persistence
-                localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+                // Scroll to bottom after messages are added
+                setTimeout(() => {
+                    if (messagesContainer && messagesContainer.parentNode) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                }, 100);
+                
+                console.log(`✅ Loaded ${historyData.history.length} messages into DOM (visible: ${messagesContainer.children.length})`);
+            } else {
+                console.error('❌ Messages container was removed before messages could be added');
             }
-
-            // Scroll to bottom after messages are added
-            setTimeout(() => {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }, 50);
-
-            console.log(`✅ Loaded ${historyData.history.length} messages`);
         } else {
             // No history - show welcome message and SAVE it to DB
             const welcomeMsg = selectedGirl.welcomeMessage || 'Привет! 💕';
@@ -908,13 +950,20 @@ function addMessage(text, sender, timestamp = null) {
             <div class="message-time">${timeStr}</div>
         </div>
     `;
+    
+    // Mark as loaded to ensure visibility
+    messageDiv.classList.add('loaded');
 
     // Ensure container still exists before appending
     if (container && container.parentNode) {
         container.appendChild(messageDiv);
+        // Force immediate visibility
+        messageDiv.style.opacity = '1';
         // Use requestAnimationFrame for smooth scrolling
         requestAnimationFrame(() => {
-            container.scrollTop = container.scrollHeight;
+            if (container && container.parentNode) {
+                container.scrollTop = container.scrollHeight;
+            }
         });
     } else {
         console.error('❌ Chat container was removed before message could be added');

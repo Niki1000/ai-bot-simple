@@ -620,8 +620,14 @@
             display: flex;
             gap: 10px;
             animation: messageSlide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            opacity: 0;
+            opacity: 1;
             animation-fill-mode: forwards;
+        }
+        
+        /* Ensure messages are visible even if animation hasn't started */
+        .message.loaded {
+            opacity: 1 !important;
+            animation: none;
         }
 
         @keyframes messageSlide {
