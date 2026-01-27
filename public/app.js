@@ -1593,6 +1593,14 @@ function resetCards() {
 
 // ==================== USER PROFILE ====================
 
+// Daily missions data
+let dailyMissions = [
+    { id: 'swipe_5', title: 'Просмотреть 5 профилей', icon: '👆', target: 5, progress: 0, reward: 10 },
+    { id: 'like_3', title: 'Лайкнуть 3 девушек', icon: '❤️', target: 3, progress: 0, reward: 15 },
+    { id: 'message_10', title: 'Отправить 10 сообщений', icon: '💬', target: 10, progress: 0, reward: 20 },
+    { id: 'chat_3', title: 'Написать 3 разным девушкам', icon: '💕', target: 3, progress: 0, reward: 25 }
+];
+
 // Show user profile view
 async function showUserProfile() {
     document.getElementById('swipeView').style.display = 'none';
@@ -1631,6 +1639,7 @@ async function showUserProfile() {
         }
     }
 
+    try {
         if (userData.success && userData.user) {
             const user = userData.user;
             
@@ -1668,12 +1677,14 @@ async function showUserProfile() {
             const credits = user.credits || 0;
             
             const statusBadge = document.querySelector('.status-badge');
-            if (subLevel === 'premium') {
-                statusBadge.textContent = 'Premium';
-                statusBadge.className = 'status-badge premium';
-            } else {
-                statusBadge.textContent = 'Бесплатно';
-                statusBadge.className = 'status-badge free';
+            if (statusBadge) {
+                if (subLevel === 'premium') {
+                    statusBadge.textContent = 'Premium';
+                    statusBadge.className = 'status-badge premium';
+                } else {
+                    statusBadge.textContent = 'Бесплатно';
+                    statusBadge.className = 'status-badge free';
+                }
             }
             
             // Update credits display
@@ -1690,6 +1701,9 @@ async function showUserProfile() {
     } catch (error) {
         console.error('❌ Error loading user profile:', error);
     }
+    
+    // Load and display daily missions
+    loadDailyMissions();
 }
 
 // Load recent chats for user profile
@@ -1806,6 +1820,141 @@ function showUpgradeModal() {
         tg.showAlert(message);
     } else {
         alert(message);
+    }
+}
+
+// Load and display daily missions
+async function loadDailyMissions() {
+    try {
+        // Get user data to check mission progress
+        const now = Date.now();
+        let userData;
+        if (apiCache.userData && (now - apiCache.userDataTimestamp) < CACHE_DURATION) {
+            userData = apiCache.userData;
+        } else {
+            const userRes = await apiFetch(`/api/webapp/user/${userId}`, {}, 1);
+            userData = await safeJsonParse(userRes);
+            apiCache.userData = userData;
+            apiCache.userDataTimestamp = now;
+        }
+
+        const user = userData.user;
+        const missionsData = user?.dailyMissions || {};
+        const today = new Date().toDateString();
+        const lastReset = missionsData.lastReset ? new Date(missionsData.lastReset).toDateString() : null;
+
+        // Reset missions if it's a new day
+        if (lastReset !== today) {
+            // Reset progress (will be saved when missions are completed)
+            missionsData.completed = [];
+            missionsData.progress = {};
+        }
+
+        // Calculate progress for each mission
+        const matchesCount = user?.likes?.length || 0;
+        const messagesCount = user?.totalMessages || 0;
+        const uniqueChats = user?.chatHistory ? Object.keys(user.chatHistory).length : 0;
+
+        // Update mission progress
+        dailyMissions[0].progress = Math.min(dailyMissions[0].target, matchesCount + (user?.passes?.length || 0)); // swipe_5
+        dailyMissions[1].progress = Math.min(dailyMissions[1].target, matchesCount); // like_3
+        dailyMissions[2].progress = Math.min(dailyMissions[2].target, messagesCount); // message_10
+        dailyMissions[3].progress = Math.min(dailyMissions[3].target, uniqueChats); // chat_3
+
+        // Render missions
+        const missionsList = document.getElementById('dailyMissionsList');
+        if (!missionsList) return;
+
+        missionsList.innerHTML = '';
+
+        dailyMissions.forEach(mission => {
+            const isCompleted = missionsData.completed?.includes(mission.id) || mission.progress >= mission.target;
+            const progressPercent = Math.min(100, (mission.progress / mission.target) * 100);
+
+            const missionCard = document.createElement('div');
+            missionCard.className = `mission-card ${isCompleted ? 'completed' : ''}`;
+            missionCard.innerHTML = `
+                <div class="mission-icon">${mission.icon}</div>
+                <div class="mission-info">
+                    <div class="mission-title">${mission.title}</div>
+                    <div class="mission-progress">${mission.progress}/${mission.target}</div>
+                    <div class="mission-progress-bar">
+                        <div class="mission-progress-fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                </div>
+                ${isCompleted ? 
+                    '<div class="mission-check"><i class="fas fa-check"></i></div>' : 
+                    `<div class="mission-reward">💰 +${mission.reward}</div>`
+                }
+            `;
+
+            missionsList.appendChild(missionCard);
+        });
+
+        // Check and claim rewards for completed missions
+        checkAndClaimMissionRewards(missionsData);
+
+    } catch (error) {
+        console.error('❌ Error loading daily missions:', error);
+    }
+}
+
+// Check and claim rewards for newly completed missions
+async function checkAndClaimMissionRewards(missionsData) {
+    const completed = missionsData.completed || [];
+    const today = new Date().toDateString();
+    const lastReset = missionsData.lastReset ? new Date(missionsData.lastReset).toDateString() : null;
+
+    // Reset if new day
+    if (lastReset !== today) {
+        missionsData.completed = [];
+        missionsData.progress = {};
+    }
+
+    let totalReward = 0;
+    const newlyCompleted = [];
+
+    dailyMissions.forEach(mission => {
+        if (mission.progress >= mission.target && !completed.includes(mission.id)) {
+            newlyCompleted.push(mission.id);
+            totalReward += mission.reward;
+        }
+    });
+
+    if (newlyCompleted.length > 0 && totalReward > 0) {
+        // Claim rewards
+        try {
+            const res = await apiFetch('/api/webapp/claim-mission-rewards', {
+                method: 'POST',
+                body: JSON.stringify({
+                    telegramId: userId,
+                    missionIds: newlyCompleted,
+                    totalReward: totalReward
+                })
+            });
+            const data = await safeJsonParse(res);
+            
+            if (data.success) {
+                // Update cache
+                if (apiCache.userData && apiCache.userData.user) {
+                    apiCache.userData.user.credits = data.credits;
+                    apiCache.userData.user.dailyMissions = data.dailyMissions;
+                }
+                
+                // Show notification
+                const message = `🎉 Задания выполнены! Получено ${totalReward} кредитов!`;
+                if (window.Telegram?.WebApp) {
+                    tg.showAlert(message);
+                } else {
+                    alert(message);
+                }
+                
+                // Reload missions to show updated state
+                loadDailyMissions();
+            }
+        } catch (error) {
+            console.error('❌ Error claiming mission rewards:', error);
+        }
     }
 }
 
