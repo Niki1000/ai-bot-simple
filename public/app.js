@@ -511,6 +511,39 @@ function formatTimestamp(timestamp) {
     return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
+// Parse thoughts and message from AI response
+function parseThoughtsAndMessage(text) {
+    // Check if response contains thoughts (separated by double newline or pattern)
+    const parts = text.split(/\n\s*\n/);
+    
+    if (parts.length >= 2) {
+        // Has thoughts and message
+        return {
+            hasThoughts: true,
+            thoughts: parts[0].trim(),
+            message: parts.slice(1).join('\n\n').trim()
+        };
+    }
+    
+    // Check for single newline pattern (thoughts\nmessage)
+    const singleNewline = text.split('\n');
+    if (singleNewline.length >= 2 && singleNewline[0].length > 20) {
+        // Likely thoughts on first line, message on rest
+        return {
+            hasThoughts: true,
+            thoughts: singleNewline[0].trim(),
+            message: singleNewline.slice(1).join('\n').trim()
+        };
+    }
+    
+    // No thoughts, just regular message
+    return {
+        hasThoughts: false,
+        thoughts: null,
+        message: text
+    };
+}
+
 // Add message to chat with timestamp
 function addMessage(text, sender, timestamp = null) {
     const container = document.getElementById('chatMessages');
@@ -523,9 +556,25 @@ function addMessage(text, sender, timestamp = null) {
     
     const timeStr = timestamp ? formatTimestamp(timestamp) : formatTimestamp(new Date());
     
+    // Parse thoughts and message for bot messages
+    let messageContent = '';
+    if (sender === 'bot') {
+        const parsed = parseThoughtsAndMessage(text);
+        if (parsed.hasThoughts) {
+            messageContent = `
+                <div class="message-thoughts">${parsed.thoughts}</div>
+                <div class="message-text">${parsed.message}</div>
+            `;
+        } else {
+            messageContent = `<div class="message-text">${parsed.message}</div>`;
+        }
+    } else {
+        messageContent = `<div class="message-text">${text}</div>`;
+    }
+    
     messageDiv.innerHTML = `
         <div class="message-bubble">
-            <div class="message-text">${text}</div>
+            ${messageContent}
             <div class="message-time">${timeStr}</div>
         </div>
     `;

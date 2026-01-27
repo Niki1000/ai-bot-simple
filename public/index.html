@@ -613,6 +613,17 @@
             box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
         }
 
+        /* Thoughts styling for bot messages */
+        .message-thoughts {
+            font-size: 13px;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            line-height: 1.5;
+        }
+
         /* Typing Indicator */
         .typing-indicator {
             animation: messageSlide 0.3s ease;
@@ -671,7 +682,6 @@
         /* Chat Input */
         .chat-input-container {
             padding: 15px 20px;
-            padding-bottom: max(15px, env(safe-area-inset-bottom));
             background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(20px);
             border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -702,7 +712,6 @@
             color: rgba(255, 255, 255, 0.4);
         }
 
-        .btn-photo,
         .btn-send {
             width: 45px;
             height: 45px;
@@ -715,21 +724,51 @@
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-
-        .btn-photo {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
-            box-shadow: 0 0 15px rgba(255, 107, 107, 0.4);
-        }
-
-        .btn-send {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             box-shadow: 0 0 15px rgba(102, 126, 234, 0.4);
         }
 
-        .btn-photo:active,
         .btn-send:active {
             transform: scale(0.9);
+        }
+
+        /* Photo Request Button Container */
+        .photo-request-container {
+            padding: 12px 20px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-request-photo {
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-request-photo i {
+            font-size: 20px;
+        }
+
+        .btn-request-photo:active {
+            transform: scale(0.98);
+        }
+
+        .btn-request-photo:hover {
+            box-shadow: 0 6px 25px rgba(255, 107, 107, 0.5);
         }
 
         /* Photo Modal */
@@ -1647,12 +1686,17 @@
 
             <!-- Chat Input -->
             <div class="chat-input-container">
-                <button class="btn-photo" onclick="requestPhoto()" title="Попросить фото">
-                    <i class="fas fa-camera"></i>
-                </button>
                 <input type="text" id="messageInput" placeholder="Напиши сообщение..." onkeypress="handleEnter(event)">
                 <button class="btn-send" onclick="sendMessage()">
                     <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            
+            <!-- Photo Request Button -->
+            <div class="photo-request-container">
+                <button class="btn-request-photo" onclick="requestPhoto()">
+                    <i class="fas fa-camera"></i>
+                    <span>Попросить фото</span>
                 </button>
             </div>
         </div>
