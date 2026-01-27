@@ -113,7 +113,7 @@ async function handleUpdate(update) {
           '2. Свайпни девушек вправо, чтобы лайкнуть\n' +
           '3. Открой чат с понравившейся девушкой\n' +
           '4. Начни общение! 💕\n\n' +
-          'После выбора девушки в приложении, ты сможешь общаться с ней прямо здесь в боте!';
+          'Все общение происходит в приложении - открой его, чтобы начать чат!';
         
         await bot.sendMessage(chatId, helpMessage, {
           reply_markup: {
@@ -177,130 +177,30 @@ async function handleUpdate(update) {
         return;
       }
       
-      // Handle regular messages - AI chat
-      let user = await User.findOne({ telegramId: userId });
+      // Handle regular messages - redirect to WebApp (chat only in miniapp)
+      const baseUrl = process.env.WEBAPP_URL || 
+                     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                     'https://ai-bot-simple.vercel.app';
+      const timestamp = Date.now();
+      const webAppUrl = `${baseUrl}?v=${timestamp}`;
       
-      // Create user if doesn't exist (shouldn't happen, but safety check)
-      if (!user) {
-        user = new User({
-          telegramId: userId,
-          likes: [],
-          passes: [],
-          sympathy: {},
-          chatHistory: {},
-          unlockedPhotos: {},
-          totalMessages: 0,
-          subscriptionLevel: 'free',
-          credits: 0
-        });
-        await user.save();
-        console.log(`👤 Created new user ${userId} from bot`);
-      }
-      
-      if (!user.selectedGirl) {
-        const baseUrl = process.env.WEBAPP_URL || 
-                       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-                       'https://ai-bot-simple.vercel.app';
-        const timestamp = Date.now();
-        const webAppUrl = `${baseUrl}?v=${timestamp}`;
-        
-        await bot.sendMessage(chatId, 
-          '❌ Сначала выбери девушку в приложении!\n\n' +
-          'Нажми кнопку ниже, чтобы открыть AI Dating и выбрать девушку для общения 💕',
-          {
-            reply_markup: {
-              inline_keyboard: [[
-                {
-                  text: '💕 Открыть AI Dating',
-                  web_app: { url: webAppUrl }
-                }
-              ]],
-              remove_keyboard: true
-            }
-          }
-        );
-        return;
-      }
-      
-      // Get character
-      const char = await Character.findById(user.selectedGirl);
-      if (!char) {
-        await bot.sendMessage(chatId, '❌ Девушка не найдена. Выбери другую!', {
+      await bot.sendMessage(chatId, 
+        '💬 Общение с девушками доступно только в приложении!\n\n' +
+        'Нажми кнопку ниже, чтобы открыть AI Dating и начать чат 💕',
+        {
           reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '💕 Открыть AI Dating',
+                web_app: { url: webAppUrl }
+              }
+            ]],
             remove_keyboard: true
           }
-        });
-        return;
-      }
-      
-      // Call DeepSeek API
-      const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            { 
-              role: 'system', 
-              content: `Ты ${char.name}, ${char.age} лет. ${char.personality}. Отвечай кратко, флиртуй, используй эмодзи. 2-3 предложения.` 
-            },
-            { role: 'user', content: text }
-          ],
-          temperature: 0.8
-        })
-      });
-      
-      const data = await deepseekRes.json();
-      const response = data.choices?.[0]?.message?.content || 'Хм... 🤔';
-      
-      // Save messages - CRITICAL: Use markModified() for nested objects
-      // Initialize nested objects if missing
-      if (!user.chatHistory) user.chatHistory = {};
-      if (!user.sympathy) user.sympathy = {};
-      if (!user.unlockedPhotos) user.unlockedPhotos = {};
-      
-      const charId = char._id.toString();
-      if (!user.chatHistory[charId]) {
-        user.chatHistory[charId] = [];
-      }
-      
-      // Save user message
-      user.chatHistory[charId].push({
-        message: text,
-        sender: 'user',
-        timestamp: new Date()
-      });
-      
-      // Save bot response
-      user.chatHistory[charId].push({
-        message: response,
-        sender: 'bot',
-        timestamp: new Date()
-      });
-      
-      // Update sympathy and total messages
-      user.sympathy[charId] = (user.sympathy[charId] || 0) + 1;
-      user.totalMessages = (user.totalMessages || 0) + 1;
-      
-      // CRITICAL: Mark nested objects as modified so Mongoose saves them
-      user.markModified('chatHistory');
-      user.markModified('sympathy');
-      
-      await user.save();
-      
-      console.log(`💾 Saved messages to DB. History length: ${user.chatHistory[charId].length}`);
-      
-      // Send response - remove keyboard buttons
-      await bot.sendMessage(chatId, `💕 ${char.name}:\n\n${response}`, {
-        reply_markup: {
-          remove_keyboard: true
         }
-      });
+      );
       
-      console.log(`✅ Replied to ${userId}`);
+      console.log(`📱 Redirected user ${userId} to WebApp for chat`);
     }
   } catch (error) {
     console.error('❌ Bot error:', error);
