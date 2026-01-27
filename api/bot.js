@@ -95,6 +95,40 @@ async function handleUpdate(update) {
         return;
       }
       
+      // Handle /help command
+      if (text === '/help') {
+        const baseUrl = process.env.WEBAPP_URL || 
+                       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                       'https://ai-bot-simple.vercel.app';
+        const timestamp = Date.now();
+        const webAppUrl = `${baseUrl}?v=${timestamp}`;
+        
+        const helpMessage = 
+          '📖 Помощь по AI Dating Bot\n\n' +
+          '🔹 /start - Начать работу с ботом\n' +
+          '🔹 /help - Показать это сообщение\n' +
+          '🔹 /girls - Список доступных девушек\n\n' +
+          '💡 Чтобы начать общение:\n' +
+          '1. Нажми кнопку ниже "Открыть AI Dating"\n' +
+          '2. Свайпни девушек вправо, чтобы лайкнуть\n' +
+          '3. Открой чат с понравившейся девушкой\n' +
+          '4. Начни общение! 💕\n\n' +
+          'После выбора девушки в приложении, ты сможешь общаться с ней прямо здесь в боте!';
+        
+        await bot.sendMessage(chatId, helpMessage, {
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '💕 Открыть AI Dating',
+                web_app: { url: webAppUrl }
+              }
+            ]],
+            remove_keyboard: true
+          }
+        });
+        return;
+      }
+      
       // Handle /girls command
       if (text === '/girls') {
         const chars = await Character.find({ isActive: true }).limit(5);
@@ -110,6 +144,36 @@ async function handleUpdate(update) {
             remove_keyboard: true
           }
         });
+        return;
+      }
+      
+      // Handle unrecognized commands (starts with / but not a known command)
+      if (text.startsWith('/')) {
+        const baseUrl = process.env.WEBAPP_URL || 
+                       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                       'https://ai-bot-simple.vercel.app';
+        const timestamp = Date.now();
+        const webAppUrl = `${baseUrl}?v=${timestamp}`;
+        
+        await bot.sendMessage(chatId, 
+          '❌ Команда не найдена!\n\n' +
+          'Доступные команды:\n' +
+          '🔹 /start - Начать работу\n' +
+          '🔹 /help - Помощь\n' +
+          '🔹 /girls - Список девушек\n\n' +
+          'Или открой приложение, чтобы начать знакомства! 👇',
+          {
+            reply_markup: {
+              inline_keyboard: [[
+                {
+                  text: '💕 Открыть AI Dating',
+                  web_app: { url: webAppUrl }
+                }
+              ]],
+              remove_keyboard: true
+            }
+          }
+        );
         return;
       }
       
@@ -134,11 +198,23 @@ async function handleUpdate(update) {
       }
       
       if (!user.selectedGirl) {
+        const baseUrl = process.env.WEBAPP_URL || 
+                       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+                       'https://ai-bot-simple.vercel.app';
+        const timestamp = Date.now();
+        const webAppUrl = `${baseUrl}?v=${timestamp}`;
+        
         await bot.sendMessage(chatId, 
           '❌ Сначала выбери девушку в приложении!\n\n' +
-          'Используй /start чтобы открыть AI Dating 💕',
+          'Нажми кнопку ниже, чтобы открыть AI Dating и выбрать девушку для общения 💕',
           {
             reply_markup: {
+              inline_keyboard: [[
+                {
+                  text: '💕 Открыть AI Dating',
+                  web_app: { url: webAppUrl }
+                }
+              ]],
               remove_keyboard: true
             }
           }
