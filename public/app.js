@@ -384,16 +384,24 @@ function createCard(girl, index) {
     // Use data-src for lazy loading, only load top 2 cards immediately
     const shouldLazyLoad = index > 1;
     const imageUrl = girl.avatarUrl || 'https://i.pravatar.cc/400';
-    
-    const personality = girl.personality || girl.trait || '';
+
+    const escapeHtml = (str) => String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    const safeName = escapeHtml(girl.name);
+    const safeAge = escapeHtml(`${girl.age} лет`);
+    const safeBio = escapeHtml(girl.bio || girl.description || '');
     card.innerHTML = `
-        <img ${shouldLazyLoad ? 'data-src' : 'src'}="${imageUrl}" alt="${girl.name}" class="card-image" ${shouldLazyLoad ? 'loading="lazy"' : ''}>
+        <img ${shouldLazyLoad ? 'data-src' : 'src'}="${imageUrl}" alt="${safeName}" class="card-image" ${shouldLazyLoad ? 'loading="lazy"' : ''}>
         <div class="card-overlay"></div>
         <div class="profile-info">
-            <div class="profile-name">${girl.name}</div>
-            ${personality ? `<div class="profile-trait">${personality}</div>` : ''}
-            <div class="profile-age">${girl.age} лет</div>
-            <div class="profile-bio">${girl.bio || girl.description || ''}</div>
+            <div class="profile-name">${safeName}</div>
+            <div class="profile-age">${safeAge}</div>
+            <div class="profile-bio">${safeBio}</div>
         </div>
     `;
 
