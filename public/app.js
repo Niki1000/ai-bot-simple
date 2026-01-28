@@ -2196,6 +2196,13 @@ let userEntitlements = {
     unlockedPhotos: {}
 };
 
+// Normalize URL for unlock comparison (strip query/hash so CDN params don't break match)
+function isPhotoUnlocked(url, unlockedList) {
+    if (!url || !Array.isArray(unlockedList)) return false;
+    const base = (url || '').split('?')[0].split('#')[0];
+    return unlockedList.some(u => u && (u.split('?')[0].split('#')[0] === base || u === url));
+}
+
 // Load entitlements (unlockedPhotos, credits, subscription) so profile/media show correct lock state after reload
 async function loadEntitlements() {
     try {
@@ -2220,12 +2227,8 @@ async function openCharacterProfile() {
     
     console.log('👤 Opening profile for:', selectedGirl.name);
     
-    const now = Date.now();
-    if (!apiCache.entitlements || (now - apiCache.entitlementsTimestamp) >= CACHE_DURATION) {
-        await loadEntitlements();
-    } else {
-        userEntitlements = apiCache.entitlements;
-    }
+    // Always refresh entitlements when opening profile so unlocked state is correct after reload
+    await loadEntitlements();
     
     // Populate profile data
     document.getElementById('profileViewName').textContent = selectedGirl.name;
@@ -2257,6 +2260,9 @@ async function openCharacterProfile() {
     const src2 = photos[1] || photos[0] || selectedGirl.avatarUrl;
     const src3 = photos[2] || photos[0] || selectedGirl.avatarUrl;
     
+    const unlocked2 = isPremium || isPhotoUnlocked(src2, unlockedForChar);
+    const unlocked3 = isPremium || isPhotoUnlocked(src3, unlockedForChar);
+    
     function addGalleryItem(url, isUnlocked, levelLabel, clickHandler) {
         const item = document.createElement('div');
         item.className = 'gallery-item' + (isUnlocked ? '' : ' locked');
@@ -2273,24 +2279,20 @@ async function openCharacterProfile() {
             return false;
         };
         item.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); clickHandler(url, e); }, true);
-        item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); clickHandler(url, e); }, true);
+        if (isUnlocked) {
+            item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); clickHandler(url, e); }, true);
+        } else {
+            item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); }, true);
+        }
         galleryContainer.appendChild(item);
     }
     
     // Tile 1: always visible
     addGalleryItem(src1, true, null, (url, e) => showPhoto(url, e));
-    // Tile 2: locked Уровень 4
-    const unlocked2 = isPremium || unlockedForChar.includes(src2);
-    addGalleryItem(src2, unlocked2, unlocked2 ? null : 'Уровень 4', (url, e) => {
-        if (unlocked2) showPhoto(url, e);
-        else handleLockedPhoto(url, e);
-    });
-    // Tile 3: locked Уровень 5
-    const unlocked3 = isPremium || unlockedForChar.includes(src3);
-    addGalleryItem(src3, unlocked3, unlocked3 ? null : 'Уровень 5', (url, e) => {
-        if (unlocked3) showPhoto(url, e);
-        else handleLockedPhoto(url, e);
-    });
+    // Tile 2: locked Уровень 4 — locked tiles do nothing on click
+    addGalleryItem(src2, unlocked2, unlocked2 ? null : 'Уровень 4', (url, e) => { if (unlocked2) showPhoto(url, e); });
+    // Tile 3: locked Уровень 5 — locked tiles do nothing on click
+    addGalleryItem(src3, unlocked3, unlocked3 ? null : 'Уровень 5', (url, e) => { if (unlocked3) showPhoto(url, e); });
     
     // Show profile view
     document.getElementById('characterProfileView').style.display = 'flex';
@@ -2307,18 +2309,14 @@ async function openChatMediaGallery() {
     const grid = document.getElementById('chatMediaGrid');
     if (!grid) return;
     grid.innerHTML = '';
-    const now = Date.now();
-    if (!apiCache.entitlements || (now - apiCache.entitlementsTimestamp) >= CACHE_DURATION) {
-        await loadEntitlements();
-    } else {
-        userEntitlements = apiCache.entitlements;
-    }
+    // Always refresh entitlements when opening "Все медиа чата" so unlocked state is correct after reload
+    await loadEntitlements();
     const charKey = String(selectedGirl._id);
     const unlockedForChar = userEntitlements.unlockedPhotos?.[charKey] || [];
     const isPremium = userEntitlements.subscriptionLevel === 'premium';
     const allPhotos = [selectedGirl.avatarUrl].concat(selectedGirl.photos || []);
     allPhotos.forEach((url, index) => {
-        const isUnlocked = index === 0 || isPremium || unlockedForChar.includes(url);
+        const isUnlocked = index === 0 || isPremium || isPhotoUnlocked(url, unlockedForChar);
         const levelNum = index + 4;
         const item = document.createElement('div');
         item.className = 'chat-media-item' + (isUnlocked ? '' : ' locked');
