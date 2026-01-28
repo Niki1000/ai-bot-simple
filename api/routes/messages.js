@@ -41,10 +41,14 @@ router.post('/save-message', async (req, res) => {
       if (!list.includes(photoUrl)) list.push(photoUrl);
       user.unlockedPhotos = { ...prev, [characterId]: list };
       user.markModified('unlockedPhotos');
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messages.js:save-message:after-set-unlocked',message:'Backend set unlockedPhotos (bot photo)',data:{characterId,photoUrlLen:photoUrl?.length,keys:Object.keys(user.unlockedPhotos||{}),listLen:list.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     }
 
-    // Update stats for user messages with improved sympathy calculation
-    if (sender === 'user') {
+    // Update stats for user messages with improved sympathy calculation (skip sympathy for photo-request message)
+    const isPhotoRequestMessage = (sender === 'user' && message && String(message).trim() === '📸 Запрос фото');
+    if (sender === 'user' && !isPhotoRequestMessage) {
       // Calculate sympathy points based on message length
       const sympathyPoints = calculateSympathyPoints(message);
       
@@ -67,7 +71,9 @@ router.post('/save-message', async (req, res) => {
     user.markModified('chatHistory');
     
     await user.save();
-    
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'messages.js:save-message:after-save',message:'Backend after user.save()',data:{characterId,unlockedKeys:Object.keys(user.unlockedPhotos||{}),firstLen:(user.unlockedPhotos||{})[characterId]?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     console.log(`✅ Message saved. History length: ${user.chatHistory[characterId].length}`);
     
     res.json({ success: true, sympathy: user.sympathy[characterId] || 0 });
