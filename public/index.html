@@ -1737,6 +1737,8 @@
 
         .chat-media-item.locked {
             filter: blur(6px) brightness(0.5);
+            cursor: not-allowed;
+            pointer-events: auto; /* consume clicks so nothing happens; unlock logic will change later */
         }
 
         .chat-media-item.locked::after {

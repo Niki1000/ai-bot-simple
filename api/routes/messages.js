@@ -8,7 +8,8 @@ const connectDB = require('../db');
 router.post('/save-message', async (req, res) => {
   try {
     await connectDB();
-    const { telegramId, characterId, message, sender, photoUrl } = req.body;
+    const { telegramId, characterId: rawCharId, message, sender, photoUrl } = req.body;
+    const characterId = rawCharId != null ? String(rawCharId) : rawCharId;
     
     console.log(`💬 Saving message: ${sender} -> "${(message || '').substring(0, 30)}..." for char ${characterId}${photoUrl ? ' [with photo]' : ''}`);
     

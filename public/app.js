@@ -203,7 +203,8 @@ async function initApp() {
         console.log('👤 User ID:', userId);
 
         await loadGirls();
-        
+        await loadEntitlements();
+
         // Update matches tab notification on init
         updateMatchesTabNotification();
 
@@ -1280,10 +1281,11 @@ async function requestPhoto() {
             } catch (saveErr) {
                 console.error('❌ Failed to save bot photo message:', saveErr);
             }
+            const charKey = String(selectedGirl._id);
             if (!userEntitlements.unlockedPhotos) userEntitlements.unlockedPhotos = {};
-            if (!userEntitlements.unlockedPhotos[selectedGirl._id]) userEntitlements.unlockedPhotos[selectedGirl._id] = [];
-            if (!userEntitlements.unlockedPhotos[selectedGirl._id].includes(data.photo)) {
-                userEntitlements.unlockedPhotos[selectedGirl._id].push(data.photo);
+            if (!userEntitlements.unlockedPhotos[charKey]) userEntitlements.unlockedPhotos[charKey] = [];
+            if (!userEntitlements.unlockedPhotos[charKey].includes(data.photo)) {
+                userEntitlements.unlockedPhotos[charKey].push(data.photo);
             }
             addMessage(photoMsg, 'bot', null, data.photo);
             showPhoto(data.photo, null);
@@ -2194,35 +2196,35 @@ let userEntitlements = {
     unlockedPhotos: {}
 };
 
+// Load entitlements (unlockedPhotos, credits, subscription) so profile/media show correct lock state after reload
+async function loadEntitlements() {
+    try {
+        const entRes = await apiFetch(`/api/webapp/user-entitlements/${userId}`, {}, 1);
+        const entData = await safeJsonParse(entRes);
+        if (entData && entData.success) {
+            userEntitlements.subscriptionLevel = entData.subscriptionLevel || 'free';
+            userEntitlements.credits = entData.credits ?? 0;
+            userEntitlements.unlockedPhotos = entData.unlockedPhotos || {};
+            apiCache.entitlements = { ...userEntitlements };
+            apiCache.entitlementsTimestamp = Date.now();
+            console.log('🔑 Entitlements loaded (unlockedPhotos keys):', Object.keys(userEntitlements.unlockedPhotos || {}));
+        }
+    } catch (e) {
+        console.error('Failed to load entitlements:', e);
+    }
+}
+
 // Open character profile view
 async function openCharacterProfile() {
     if (!selectedGirl) {return;}
     
     console.log('👤 Opening profile for:', selectedGirl.name);
     
-    // Load user entitlements first (with caching)
     const now = Date.now();
-    if (apiCache.entitlements && (now - apiCache.entitlementsTimestamp) < CACHE_DURATION) {
-        console.log('📦 Using cached entitlements');
-        userEntitlements = apiCache.entitlements;
+    if (!apiCache.entitlements || (now - apiCache.entitlementsTimestamp) >= CACHE_DURATION) {
+        await loadEntitlements();
     } else {
-        try {
-            const entRes = await apiFetch(`/api/webapp/user-entitlements/${userId}`, {}, 1);
-            const entData = await safeJsonParse(entRes);
-            if (entData.success) {
-                userEntitlements = entData;
-                apiCache.entitlements = entData;
-                apiCache.entitlementsTimestamp = now;
-                console.log('🔑 Entitlements loaded:', userEntitlements);
-            }
-        } catch (e) {
-            console.error('Failed to load entitlements:', e);
-            // Use cached data if available
-            if (apiCache.entitlements) {
-                console.log('📦 Using expired cached entitlements as fallback');
-                userEntitlements = apiCache.entitlements;
-            }
-        }
+        userEntitlements = apiCache.entitlements;
     }
     
     // Populate profile data
@@ -2245,7 +2247,8 @@ async function openCharacterProfile() {
     const galleryContainer = document.getElementById('profileGallery');
     galleryContainer.innerHTML = '';
     
-    const unlockedForChar = userEntitlements.unlockedPhotos?.[selectedGirl._id] || [];
+    const charKey = String(selectedGirl._id);
+    const unlockedForChar = userEntitlements.unlockedPhotos?.[charKey] || [];
     const isPremium = userEntitlements.subscriptionLevel === 'premium';
     const photos = selectedGirl.photos && selectedGirl.photos.length > 0
         ? selectedGirl.photos
@@ -2299,12 +2302,19 @@ function closeCharacterProfile() {
 }
 
 // Open "Все медиа чата" gallery (all photos, locked/unlocked)
-function openChatMediaGallery() {
+async function openChatMediaGallery() {
     if (!selectedGirl) return;
     const grid = document.getElementById('chatMediaGrid');
     if (!grid) return;
     grid.innerHTML = '';
-    const unlockedForChar = userEntitlements.unlockedPhotos?.[selectedGirl._id] || [];
+    const now = Date.now();
+    if (!apiCache.entitlements || (now - apiCache.entitlementsTimestamp) >= CACHE_DURATION) {
+        await loadEntitlements();
+    } else {
+        userEntitlements = apiCache.entitlements;
+    }
+    const charKey = String(selectedGirl._id);
+    const unlockedForChar = userEntitlements.unlockedPhotos?.[charKey] || [];
     const isPremium = userEntitlements.subscriptionLevel === 'premium';
     const allPhotos = [selectedGirl.avatarUrl].concat(selectedGirl.photos || []);
     allPhotos.forEach((url, index) => {
@@ -2319,13 +2329,24 @@ function openChatMediaGallery() {
             levelSpan.textContent = `Уровень ${levelNum}`;
             item.appendChild(levelSpan);
         }
-        item.onclick = function(e) {
-            if (e) { e.stopPropagation(); e.preventDefault(); }
-            if (isUnlocked) showPhoto(url, e);
-            else handleLockedPhoto(url, e);
-            return false;
-        };
-        item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); }, true);
+        if (isUnlocked) {
+            item.onclick = function(e) {
+                if (e) { e.stopPropagation(); e.preventDefault(); }
+                showPhoto(url, e);
+                return false;
+            };
+            item.style.cursor = 'pointer';
+        } else {
+            // Locked: no action on click/tap (unlock logic will change later)
+            item.onclick = function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                return false;
+            };
+            item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); }, true);
+            item.style.cursor = 'default';
+            item.style.pointerEvents = 'auto';
+        }
         grid.appendChild(item);
     });
     document.getElementById('characterProfileView').style.display = 'none';
@@ -2416,12 +2437,13 @@ async function unlockPhoto(photoUrl) {
         const data = await safeJsonParse(res);
         
         if (data.success) {
-            // Update local entitlements
+            // Update local entitlements (use string key to match loadEntitlements)
+            const charKey = String(selectedGirl._id);
             userEntitlements.credits = data.remainingCredits;
-            if (!userEntitlements.unlockedPhotos[selectedGirl._id]) {
-                userEntitlements.unlockedPhotos[selectedGirl._id] = [];
+            if (!userEntitlements.unlockedPhotos[charKey]) {
+                userEntitlements.unlockedPhotos[charKey] = [];
             }
-            userEntitlements.unlockedPhotos[selectedGirl._id].push(photoUrl);
+            userEntitlements.unlockedPhotos[charKey].push(photoUrl);
             
             // Show the photo
             showPhoto(photoUrl, null);

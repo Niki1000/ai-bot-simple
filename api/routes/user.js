@@ -58,11 +58,14 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
       });
     }
     
+    const unlocked = user.unlockedPhotos || {};
+    const unlockedPhotos = {};
+    Object.keys(unlocked).forEach(k => { unlockedPhotos[String(k)] = unlocked[k]; });
     res.json({
       success: true,
       subscriptionLevel: user.subscriptionLevel || 'free',
       credits: user.credits || 0,
-      unlockedPhotos: user.unlockedPhotos || {}
+      unlockedPhotos
     });
   } catch (e) {
     console.error('❌ Entitlements error:', e);

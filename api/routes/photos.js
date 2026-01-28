@@ -7,7 +7,8 @@ const connectDB = require('../db');
 router.post('/request-photo', async (req, res) => {
   try {
     await connectDB();
-    const { telegramId, characterId } = req.body;
+    const { telegramId, characterId: rawCharId } = req.body;
+    const characterId = rawCharId != null ? String(rawCharId) : rawCharId;
     const user = await User.findOne({ telegramId: parseInt(telegramId) });
     const char = await Character.findById(characterId);
     
@@ -21,7 +22,7 @@ router.post('/request-photo', async (req, res) => {
     // Random chance based on sympathy
     if (Math.random() * 100 < chance && char.photos && char.photos.length > 0) {
       const randomPhoto = char.photos[Math.floor(Math.random() * char.photos.length)];
-      // Add to user's unlocked photos so it stays unlocked in profile and in chat
+      // Add to user's unlocked photos so it stays unlocked in profile and in chat (use string key for consistency)
       if (!user.unlockedPhotos) user.unlockedPhotos = {};
       if (!user.unlockedPhotos[characterId]) user.unlockedPhotos[characterId] = [];
       if (!user.unlockedPhotos[characterId].includes(randomPhoto)) {
@@ -46,7 +47,8 @@ router.post('/request-photo', async (req, res) => {
 router.post('/unlock-photo', async (req, res) => {
   try {
     await connectDB();
-    const { telegramId, characterId, photoUrl } = req.body;
+    const { telegramId, characterId: rawCharId, photoUrl } = req.body;
+    const characterId = rawCharId != null ? String(rawCharId) : rawCharId;
     
     console.log(`📸 Unlock request: user ${telegramId}, char ${characterId}, photo ${photoUrl}`);
     
@@ -69,7 +71,7 @@ router.post('/unlock-photo', async (req, res) => {
       });
     }
     
-    // Initialize unlockedPhotos if needed
+    // Initialize unlockedPhotos if needed (use string key for consistency)
     if (!user.unlockedPhotos) {user.unlockedPhotos = {};}
     if (!user.unlockedPhotos[characterId]) {user.unlockedPhotos[characterId] = [];}
     
