@@ -133,19 +133,52 @@
             /* Fix flex overflow */
         }
 
-        /* App name above swipe cards */
+        /* App name above swipe cards - Neon Gradient & Attractive */
         .swipe-app-title {
             position: absolute;
-            top: 10px;
-            top: max(10px, env(safe-area-inset-top));
+            top: clamp(20px, 4vh, 32px);
+            top: max(clamp(20px, 4vh, 32px), env(safe-area-inset-top));
             left: 50%;
             transform: translateX(-50%);
             z-index: 20;
-            font-size: clamp(16px, 4vw, 18px);
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+            font-size: clamp(22px, 5.5vw, 28px);
+            font-weight: 800;
+            background: linear-gradient(135deg, 
+                #f093fb 0%, 
+                #f5576c 20%,
+                #ff6b9d 40%,
+                #4facfe 60%,
+                #00f2fe 80%,
+                #f093fb 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(240, 147, 251, 0.6),
+                         0 0 60px rgba(79, 172, 254, 0.4),
+                         0 2px 10px rgba(0, 0, 0, 0.3);
             pointer-events: none;
+            letter-spacing: 1px;
+            animation: titleGradientShift 4s ease infinite, titleGlow 2s ease-in-out infinite;
+            filter: drop-shadow(0 0 8px rgba(240, 147, 251, 0.5));
+        }
+        
+        @keyframes titleGradientShift {
+            0%, 100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+        
+        @keyframes titleGlow {
+            0%, 100% {
+                filter: drop-shadow(0 0 8px rgba(240, 147, 251, 0.5)) brightness(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 15px rgba(240, 147, 251, 0.8)) brightness(1.2);
+            }
         }
 
         .swipe-container {
@@ -154,7 +187,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 52px 12px 170px 12px;
+            padding: clamp(60px, 8vh, 80px) 12px 170px 12px;
         }
 
         /* Profile Card - Bigger & More Attractive */
