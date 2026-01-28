@@ -1717,18 +1717,13 @@
             display: none;
         }
 
-        /* Daily Limits & Subscription Cards Row */
+        /* Daily Limits & Subscription Cards Row - always side by side */
         .profile-cards-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 12px;
             margin-bottom: 20px;
-        }
-
-        @media (max-width: 400px) {
-            .profile-cards-row {
-                grid-template-columns: 1fr;
-            }
+            width: 100%;
         }
 
         /* Daily Limits Card (Left) */
@@ -1738,6 +1733,7 @@
             border-radius: 16px;
             padding: 18px;
             height: 160px;
+            min-width: 0;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -1786,11 +1782,12 @@
             position: relative;
             cursor: pointer;
             transition: transform 0.3s, box-shadow 0.3s;
-            min-height: 160px;
-            max-height: 160px;
+            height: 160px;
+            min-width: 0;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
+            box-sizing: border-box;
         }
 
         .subscription-ad-card:active {
