@@ -385,11 +385,13 @@ function createCard(girl, index) {
     const shouldLazyLoad = index > 1;
     const imageUrl = girl.avatarUrl || 'https://i.pravatar.cc/400';
     
+    const personality = girl.personality || girl.trait || '';
     card.innerHTML = `
         <img ${shouldLazyLoad ? 'data-src' : 'src'}="${imageUrl}" alt="${girl.name}" class="card-image" ${shouldLazyLoad ? 'loading="lazy"' : ''}>
         <div class="card-overlay"></div>
         <div class="profile-info">
             <div class="profile-name">${girl.name}</div>
+            ${personality ? `<div class="profile-trait">${personality}</div>` : ''}
             <div class="profile-age">${girl.age} лет</div>
             <div class="profile-bio">${girl.bio || girl.description || ''}</div>
         </div>
