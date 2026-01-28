@@ -2196,11 +2196,10 @@ let userEntitlements = {
     unlockedPhotos: {}
 };
 
-// Normalize URL for unlock comparison (strip query/hash so CDN params don't break match)
+// Exact URL match only: a photo is unlocked only if its exact URL is in the list (so one sent photo doesn't unlock all)
 function isPhotoUnlocked(url, unlockedList) {
     if (!url || !Array.isArray(unlockedList)) return false;
-    const base = (url || '').split('?')[0].split('#')[0];
-    return unlockedList.some(u => u && (u.split('?')[0].split('#')[0] === base || u === url));
+    return unlockedList.indexOf(url) !== -1;
 }
 
 // Load entitlements (unlockedPhotos, credits, subscription) so profile/media show correct lock state after reload

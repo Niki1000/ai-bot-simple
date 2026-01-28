@@ -60,7 +60,11 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
     
     const unlocked = user.unlockedPhotos || {};
     const unlockedPhotos = {};
-    Object.keys(unlocked).forEach(k => { unlockedPhotos[String(k)] = unlocked[k]; });
+    Object.keys(unlocked).forEach(k => {
+      const key = String(k);
+      const val = unlocked[k];
+      unlockedPhotos[key] = Array.isArray(val) ? val.slice() : (val ? [val] : []);
+    });
     res.json({
       success: true,
       subscriptionLevel: user.subscriptionLevel || 'free',
