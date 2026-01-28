@@ -159,51 +159,9 @@ function setTelegramProfilePicture(elementId) {
     }
 }
 
-// Theme management
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    const body = document.body;
-    const themeIcon = document.getElementById('themeIcon');
-    
-    if (savedTheme === 'light') {
-        body.classList.add('light-mode');
-        if (themeIcon) {
-            themeIcon.className = 'fas fa-sun';
-        }
-    } else {
-        body.classList.remove('light-mode');
-        if (themeIcon) {
-            themeIcon.className = 'fas fa-moon';
-        }
-    }
-}
-
-function toggleTheme() {
-    const body = document.body;
-    const themeIcon = document.getElementById('themeIcon');
-    const isLight = body.classList.contains('light-mode');
-    
-    if (isLight) {
-        body.classList.remove('light-mode');
-        localStorage.setItem('theme', 'dark');
-        if (themeIcon) {
-            themeIcon.className = 'fas fa-moon';
-        }
-    } else {
-        body.classList.add('light-mode');
-        localStorage.setItem('theme', 'light');
-        if (themeIcon) {
-            themeIcon.className = 'fas fa-sun';
-        }
-    }
-}
-
 // Initialize with error boundary
 async function initApp() {
     try {
-        // Initialize theme first
-        initTheme();
-        
         // Get Telegram user ID
         if (window.Telegram?.WebApp) {
             const tg = window.Telegram.WebApp;
