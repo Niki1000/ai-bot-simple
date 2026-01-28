@@ -21,6 +21,14 @@ router.post('/request-photo', async (req, res) => {
     // Random chance based on sympathy
     if (Math.random() * 100 < chance && char.photos && char.photos.length > 0) {
       const randomPhoto = char.photos[Math.floor(Math.random() * char.photos.length)];
+      // Add to user's unlocked photos so it stays unlocked in profile and in chat
+      if (!user.unlockedPhotos) user.unlockedPhotos = {};
+      if (!user.unlockedPhotos[characterId]) user.unlockedPhotos[characterId] = [];
+      if (!user.unlockedPhotos[characterId].includes(randomPhoto)) {
+        user.unlockedPhotos[characterId].push(randomPhoto);
+        user.markModified('unlockedPhotos');
+        await user.save();
+      }
       return res.json({ success: true, photo: randomPhoto });
     }
     

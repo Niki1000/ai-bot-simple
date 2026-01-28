@@ -206,6 +206,17 @@ async function initApp() {
         
         // Update matches tab notification on init
         updateMatchesTabNotification();
+
+        // Delegated click: open photo modal when user taps a photo in chat
+        document.getElementById('chatMessages')?.addEventListener('click', (e) => {
+            const img = e.target.closest('.chat-photo-img');
+            if (img) {
+                e.preventDefault();
+                e.stopPropagation();
+                const url = img.getAttribute('data-photo-url');
+                if (url) showPhoto(url, e);
+            }
+        });
     } catch (error) {
         console.error('❌ Critical error in initApp:', error);
         // Show error to user
@@ -659,9 +670,14 @@ async function openChat() {
                 
                 const timeStr = msg.timestamp ? formatTimestamp(msg.timestamp) : formatTimestamp(new Date());
                 
-                // Parse thoughts and message for bot messages
                 let messageContent = '';
-                if (msg.sender === 'bot') {
+                if (msg.sender === 'bot' && msg.photoUrl) {
+                    const safeUrl = String(msg.photoUrl).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    messageContent = `
+                        <div class="message-text">${(msg.message || '').replace(/</g, '&lt;')}</div>
+                        <div class="message-photo"><img src="${safeUrl}" alt="Фото" class="chat-photo-img" data-photo-url="${safeUrl}"></div>
+                    `;
+                } else if (msg.sender === 'bot') {
                     const parsed = parseThoughtsAndMessage(msg.message);
                     if (parsed.hasThoughts) {
                         messageContent = `
@@ -672,7 +688,7 @@ async function openChat() {
                         messageContent = `<div class="message-text">${parsed.message}</div>`;
                     }
                 } else {
-                    messageContent = `<div class="message-text">${msg.message}</div>`;
+                    messageContent = `<div class="message-text">${(msg.message || '').replace(/</g, '&lt;')}</div>`;
                 }
                 
                 messageDiv.innerHTML = `
@@ -1111,8 +1127,8 @@ function parseThoughtsAndMessage(text) {
     };
 }
 
-// Add message to chat with timestamp
-function addMessage(text, sender, timestamp = null) {
+// Add message to chat with timestamp (optional photoUrl: show image in bubble)
+function addMessage(text, sender, timestamp = null, photoUrl = null) {
     const container = document.getElementById('chatMessages');
     
     if (!container) {
@@ -1128,9 +1144,14 @@ function addMessage(text, sender, timestamp = null) {
     
     const timeStr = timestamp ? formatTimestamp(timestamp) : formatTimestamp(new Date());
     
-    // Parse thoughts and message for bot messages
     let messageContent = '';
-    if (sender === 'bot') {
+    if (photoUrl && sender === 'bot') {
+        const safeUrl = String(photoUrl).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        messageContent = `
+            <div class="message-text">${(text || '').replace(/</g, '&lt;')}</div>
+            <div class="message-photo"><img src="${safeUrl}" alt="Фото" class="chat-photo-img" data-photo-url="${safeUrl}"></div>
+        `;
+    } else if (sender === 'bot') {
         const parsed = parseThoughtsAndMessage(text);
         if (parsed.hasThoughts) {
             messageContent = `
@@ -1141,7 +1162,7 @@ function addMessage(text, sender, timestamp = null) {
             messageContent = `<div class="message-text">${parsed.message}</div>`;
         }
     } else {
-        messageContent = `<div class="message-text">${text}</div>`;
+        messageContent = `<div class="message-text">${(text || '').replace(/</g, '&lt;')}</div>`;
     }
     
     messageDiv.innerHTML = `
@@ -1151,15 +1172,11 @@ function addMessage(text, sender, timestamp = null) {
         </div>
     `;
     
-    // Mark as loaded to ensure visibility
     messageDiv.classList.add('loaded');
 
-    // Ensure container still exists before appending
     if (container && container.parentNode) {
         container.appendChild(messageDiv);
-        // Force immediate visibility
         messageDiv.style.opacity = '1';
-        // Use requestAnimationFrame for smooth scrolling
         requestAnimationFrame(() => {
             if (container && container.parentNode) {
                 container.scrollTop = container.scrollHeight;
@@ -1228,8 +1245,26 @@ async function requestPhoto() {
         const data = await safeJsonParse(response);
 
         if (data.success && data.photo) {
+            const photoMsg = 'Вот моё фото! 📸💕';
+            try {
+                await apiFetch('/api/webapp/save-message', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        telegramId: userId,
+                        characterId: selectedGirl._id,
+                        message: photoMsg,
+                        sender: 'bot',
+                        photoUrl: data.photo
+                    })
+                });
+            } catch (_) { /* non-blocking */ }
+            if (!userEntitlements.unlockedPhotos) userEntitlements.unlockedPhotos = {};
+            if (!userEntitlements.unlockedPhotos[selectedGirl._id]) userEntitlements.unlockedPhotos[selectedGirl._id] = [];
+            if (!userEntitlements.unlockedPhotos[selectedGirl._id].includes(data.photo)) {
+                userEntitlements.unlockedPhotos[selectedGirl._id].push(data.photo);
+            }
+            addMessage(photoMsg, 'bot', null, data.photo);
             showPhoto(data.photo, null);
-            addMessage('Вот моё фото! 📸💕', 'bot');
         } else {
             const message = data.message || `Попробуй позже! Шанс: ${Math.floor(sympathy)}%`;
             showError(message, false);

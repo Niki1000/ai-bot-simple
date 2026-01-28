@@ -8,9 +8,9 @@ const connectDB = require('../db');
 router.post('/save-message', async (req, res) => {
   try {
     await connectDB();
-    const { telegramId, characterId, message, sender } = req.body;
+    const { telegramId, characterId, message, sender, photoUrl } = req.body;
     
-    console.log(`💬 Saving message: ${sender} -> "${message.substring(0, 30)}..." for char ${characterId}`);
+    console.log(`💬 Saving message: ${sender} -> "${(message || '').substring(0, 30)}..." for char ${characterId}${photoUrl ? ' [with photo]' : ''}`);
     
     let user = await User.findOne({ telegramId: parseInt(telegramId) });
     if (!user) {
@@ -29,12 +29,19 @@ router.post('/save-message', async (req, res) => {
     if (!user.sympathy) {user.sympathy = {};}
     if (!user.chatHistory[characterId]) {user.chatHistory[characterId] = [];}
 
-    // Add message to history
-    user.chatHistory[characterId].push({
-      message,
-      sender,
-      timestamp: new Date()
-    });
+    const msgEntry = { message: message || '', sender, timestamp: new Date() };
+    if (photoUrl) msgEntry.photoUrl = photoUrl;
+    user.chatHistory[characterId].push(msgEntry);
+
+    // When girl sends a photo in chat, add it to unlocked so it stays unlocked in profile
+    if (photoUrl && sender === 'bot') {
+      if (!user.unlockedPhotos) user.unlockedPhotos = {};
+      if (!user.unlockedPhotos[characterId]) user.unlockedPhotos[characterId] = [];
+      if (!user.unlockedPhotos[characterId].includes(photoUrl)) {
+        user.unlockedPhotos[characterId].push(photoUrl);
+        user.markModified('unlockedPhotos');
+      }
+    }
 
     // Update stats for user messages with improved sympathy calculation
     if (sender === 'user') {
