@@ -141,10 +141,18 @@
             left: 50%;
             transform: translateX(-50%);
             z-index: 100;
-            font-size: clamp(18px, 4vw, 22px);
+            font-size: clamp(22px, 5vw, 26px);
             font-weight: 700;
-            color: #ffffff;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(135deg, 
+                #f093fb 0%, 
+                #f5576c 25%,
+                #ff6b9d 50%,
+                #4facfe 75%,
+                #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
             pointer-events: none;
             letter-spacing: 0.5px;
             white-space: nowrap;
