@@ -1719,6 +1719,211 @@
             margin-bottom: 20px;
         }
 
+        /* Daily Limits & Subscription Cards Row */
+        .profile-cards-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 400px) {
+            .profile-cards-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Daily Limits Card (Left) */
+        .daily-limits-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .limits-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 15px;
+        }
+
+        .limits-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .limit-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .limit-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .limit-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Subscription Ad Card (Right) */
+        .subscription-ad-card {
+            background: linear-gradient(135deg, #feca57 0%, #ff9f43 50%, #f093fb 100%);
+            border-radius: 16px;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .subscription-ad-card:active {
+            transform: scale(0.98);
+        }
+
+        .subscription-ad-card:hover {
+            box-shadow: 0 10px 30px rgba(254, 202, 87, 0.4);
+        }
+
+        .ad-image-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(135deg, rgba(254, 202, 87, 0.4) 0%, rgba(255, 159, 67, 0.4) 50%, rgba(240, 147, 251, 0.4) 100%),
+                radial-gradient(circle at 70% 30%, rgba(255, 192, 203, 0.3) 0%, transparent 50%);
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .ad-image-wrapper::before {
+            content: '👑';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 40px;
+            opacity: 0.3;
+            transform: rotate(-15deg);
+        }
+
+        .ad-gradient-overlay {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+        }
+
+        .ad-content {
+            position: relative;
+            z-index: 2;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ad-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .ad-button {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 20px;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a0b2e;
+            cursor: pointer;
+            transition: all 0.3s;
+            align-self: flex-start;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 3;
+        }
+
+        .ad-button:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .ad-button:active {
+            transform: scale(0.95);
+            background: white;
+        }
+
+        /* Profile Navigation Buttons */
+        .profile-nav-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .profile-nav-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+            text-align: left;
+        }
+
+        .profile-nav-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .profile-nav-btn:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-btn-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(240, 147, 251, 0.1);
+            border-radius: 10px;
+            font-size: 18px;
+            color: rgba(240, 147, 251, 1);
+            flex-shrink: 0;
+        }
+
+        .nav-btn-text {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .nav-btn-arrow {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            flex-shrink: 0;
+        }
+
         .user-stat-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1747,12 +1952,9 @@
             color: rgba(255, 255, 255, 0.5);
         }
 
+        /* Legacy subscription card - kept for compatibility but not used in new design */
         .user-subscription-card {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
-            border: 1px solid rgba(240, 147, 251, 0.3);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
+            display: none;
         }
 
         .subscription-header {
@@ -2201,37 +2403,55 @@
                 </div>
             </div>
 
-            <!-- Subscription Status -->
-            <div class="user-subscription-card">
-                <div class="subscription-header">
-                    <i class="fas fa-crown"></i>
-                    <span>Подписка</span>
+            <!-- Daily Limits & Subscription Cards (Side by Side) -->
+            <div class="profile-cards-row">
+                <!-- Daily Limits Card (Left) -->
+                <div class="daily-limits-card">
+                    <h3 class="limits-title">На сегодня осталось:</h3>
+                    <div class="limits-list">
+                        <div class="limit-item">
+                            <span class="limit-value" id="dailyCustomLimit">0</span>
+                            <span class="limit-label">кастомных</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-value" id="dailyGalleryLimit">2</span>
+                            <span class="limit-label">галерея</span>
+                        </div>
+                        <div class="limit-item">
+                            <span class="limit-value" id="dailyMessagesLimit">50</span>
+                            <span class="limit-label">сообщений</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="subscription-status" id="userSubscriptionStatus">
-                    <span class="status-badge free">Бесплатно</span>
-                </div>
-                <div class="credits-display">
-                    <i class="fas fa-coins"></i>
-                    <span>Кредиты: <strong id="userCreditsCount">0</strong></span>
-                </div>
-                <p class="subscription-info">Оформи Premium для разблокировки всех фото и функций!</p>
-                <div class="subscription-buttons">
-                    <button class="btn-upgrade" onclick="showUpgradeModal()">
-                        <i class="fas fa-rocket"></i> Premium
-                    </button>
-                    <button class="btn-get-credits" onclick="getTestCredits()">
-                        <i class="fas fa-gift"></i> +50 кредитов
-                    </button>
+
+                <!-- Subscription Ad Card (Right) -->
+                <div class="subscription-ad-card" onclick="showUpgradeModal()">
+                    <div class="ad-image-wrapper">
+                        <div class="ad-gradient-overlay"></div>
+                    </div>
+                    <div class="ad-content">
+                        <p class="ad-text">Получай больше фото ежедневно</p>
+                        <button class="ad-button" onclick="event.stopPropagation(); showUpgradeModal();">Получить</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Recent Chats -->
-            <div class="user-recent-section">
-                <h3><i class="fas fa-clock"></i> Недавние чаты</h3>
-                <div class="recent-chats-list" id="userRecentChats">
-                    <!-- Recent chats will be inserted here -->
-                    <div class="no-recent">Начни общение с девушками!</div>
-                </div>
+            <!-- Navigation Buttons -->
+            <div class="profile-nav-buttons">
+                <button class="profile-nav-btn" onclick="showUpgradeModal()">
+                    <div class="nav-btn-icon">
+                        <i class="fas fa-crown"></i>
+                    </div>
+                    <span class="nav-btn-text">Подписка</span>
+                    <i class="fas fa-chevron-right nav-btn-arrow"></i>
+                </button>
+                <button class="profile-nav-btn" onclick="showSupport()">
+                    <div class="nav-btn-icon">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <span class="nav-btn-text">Поддержка</span>
+                    <i class="fas fa-chevron-right nav-btn-arrow"></i>
+                </button>
             </div>
         </div>
     </div>

@@ -1765,19 +1765,41 @@ async function showUserProfile() {
             const subLevel = user.subscriptionLevel || 'free';
             const credits = user.credits || 0;
             
-            const statusBadge = document.querySelector('.status-badge');
-            if (statusBadge) {
-                if (subLevel === 'premium') {
-                    statusBadge.textContent = 'Premium';
-                    statusBadge.className = 'status-badge premium';
+            // Calculate daily limits
+            const dailyLimit = subLevel === 'premium' ? 1000 : 100;
+            const aiCallsToday = user.aiCallCount || 0;
+            const aiCallResetDate = user.aiCallResetDate ? new Date(user.aiCallResetDate) : null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Check if reset needed
+            let remainingMessages = dailyLimit;
+            if (aiCallResetDate) {
+                const resetDate = new Date(aiCallResetDate);
+                resetDate.setHours(0, 0, 0, 0);
+                if (resetDate.getTime() === today.getTime()) {
+                    // Same day, calculate remaining
+                    remainingMessages = Math.max(0, dailyLimit - aiCallsToday);
                 } else {
-                    statusBadge.textContent = 'Бесплатно';
-                    statusBadge.className = 'status-badge free';
+                    // New day, full limit
+                    remainingMessages = dailyLimit;
                 }
             }
             
-            // Update credits display
-            document.getElementById('userCreditsCount').textContent = credits;
+            // Update daily limits display
+            const dailyCustomLimitEl = document.getElementById('dailyCustomLimit');
+            const dailyGalleryLimitEl = document.getElementById('dailyGalleryLimit');
+            const dailyMessagesLimitEl = document.getElementById('dailyMessagesLimit');
+            
+            if (dailyCustomLimitEl) {
+                dailyCustomLimitEl.textContent = '0'; // Custom photos (future feature)
+            }
+            if (dailyGalleryLimitEl) {
+                dailyGalleryLimitEl.textContent = subLevel === 'premium' ? '∞' : '2';
+            }
+            if (dailyMessagesLimitEl) {
+                dailyMessagesLimitEl.textContent = remainingMessages;
+            }
             
             // Update local cache
             userEntitlements.credits = credits;
@@ -2064,8 +2086,10 @@ async function getTestCredits() {
             // Update local cache
             userEntitlements.credits = data.credits;
             
-            // Update UI
-            document.getElementById('userCreditsCount').textContent = data.credits;
+            // Update cache
+            if (apiCache.userData && apiCache.userData.user) {
+                apiCache.userData.user.credits = data.credits;
+            }
             
             const msg = `🎁 Получено 50 кредитов!\n\nВсего: ${data.credits} кредитов`;
             if (window.Telegram?.WebApp) {
@@ -2084,6 +2108,16 @@ async function getTestCredits() {
 // Show settings (placeholder)
 function showSettings() {
     const message = '⚙️ Настройки\n\nЭтот раздел находится в разработке.';
+    if (window.Telegram?.WebApp) {
+        tg.showAlert(message);
+    } else {
+        alert(message);
+    }
+}
+
+// Show support
+function showSupport() {
+    const message = '💬 Поддержка\n\nЕсли у тебя есть вопросы или проблемы, напиши нам:\n\n@your_support_bot\n\nМы всегда готовы помочь! 💕';
     if (window.Telegram?.WebApp) {
         tg.showAlert(message);
     } else {
@@ -2425,6 +2459,7 @@ window.showUserProfile = showUserProfile;
 window.showUpgradeModal = showUpgradeModal;
 window.getTestCredits = getTestCredits;
 window.showSettings = showSettings;
+window.showSupport = showSupport;
 window.closeCharacterProfile = closeCharacterProfile;
 window.openCharacterProfile = openCharacterProfile;
 
