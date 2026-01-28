@@ -139,7 +139,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: clamp(15px, 3vh, 25px) 20px clamp(120px, 20vh, 150px) 20px;
+            padding: clamp(20px, 4vh, 40px) 15px clamp(120px, 20vh, 150px) 15px;
         }
 
         /* Profile Card - Fully Responsive */
@@ -162,26 +162,54 @@
             z-index: 5;
         }
 
-        /* Animated neon border */
+        /* Animated neon border - Enhanced */
         .profile-card::before {
             content: '';
             position: absolute;
-            inset: -3px;
-            border-radius: clamp(20px, 4vw, 24px);
-            padding: 3px;
+            inset: -4px;
+            border-radius: clamp(24px, 5vw, 32px);
+            padding: 4px;
             background: linear-gradient(135deg,
                     #f093fb 0%,
-                    #f5576c 25%,
-                    #4facfe 50%,
-                    #00f2fe 75%,
+                    #f5576c 20%,
+                    #ff6b9d 40%,
+                    #4facfe 60%,
+                    #00f2fe 80%,
                     #f093fb 100%);
-            background-size: 200% 200%;
+            background-size: 300% 300%;
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor;
             mask-composite: exclude;
-            animation: borderRotate 4s linear infinite, borderGlow 2s ease-in-out infinite;
+            animation: borderRotate 3s linear infinite, borderGlow 2s ease-in-out infinite;
             z-index: -1;
             pointer-events: none;
+            filter: blur(1px);
+        }
+        
+        /* Additional glow effect */
+        .profile-card::after {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: clamp(24px, 5vw, 32px);
+            background: radial-gradient(circle at 50% 50%, 
+                rgba(240, 147, 251, 0.3) 0%,
+                rgba(79, 172, 254, 0.2) 50%,
+                transparent 70%);
+            z-index: -2;
+            pointer-events: none;
+            animation: pulseGlow 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulseGlow {
+            0%, 100% {
+                opacity: 0.5;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
         }
 
         @keyframes borderRotate {
@@ -225,8 +253,14 @@
 
         .card-image {
             width: 100%;
-            height: 70%;
+            height: 72%;
             object-fit: cover;
+            transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            filter: brightness(1.05) contrast(1.1);
+        }
+        
+        .profile-card:hover .card-image {
+            transform: scale(1.05);
         }
 
         .card-overlay {
@@ -249,13 +283,15 @@
         }
 
         .profile-name {
-            font-size: clamp(26px, 6vw, 32px);
-            font-weight: 700;
-            margin-bottom: 5px;
-            background: linear-gradient(135deg, #ffffff 0%, #a0d8ff 100%);
+            font-size: clamp(28px, 7vw, 36px);
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ffffff 0%, #a0d8ff 50%, #f093fb 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
+            letter-spacing: 0.5px;
+            filter: drop-shadow(0 2px 10px rgba(240, 147, 251, 0.5));
         }
 
         .profile-age {
@@ -268,14 +304,15 @@
         }
 
         .profile-bio {
-            font-size: clamp(14px, 3vw, 15px);
-            line-height: 1.5;
-            color: rgba(255, 255, 255, 0.8);
+            font-size: clamp(15px, 3.5vw, 17px);
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
 
         /* Action Buttons - Responsive & Fixed */
@@ -1012,13 +1049,13 @@
 
         /* Matches Header */
         .matches-header {
-            padding: 20px;
-            padding-top: max(20px, env(safe-area-inset-top));
+            padding: clamp(28px, 6vh, 40px) 20px;
+            padding-top: max(clamp(28px, 6vh, 40px), env(safe-area-inset-top));
             background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             flex-shrink: 0;
         }
@@ -2439,17 +2476,6 @@
 
 <body>
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">
-                <i class="fas fa-heart"></i>
-                <h1>AI Dating</h1>
-            </div>
-            <div class="user-avatar" id="userAvatar">
-                <i class="fas fa-user"></i>
-            </div>
-        </div>
-
         <!-- Main Content -->
         <div class="main-content">
             <div id="swipeView" class="swipe-container">
@@ -2551,10 +2577,7 @@
     <div id="matchesView" class="matches-view">
         <!-- Matches Header -->
         <div class="matches-header">
-            <h2>Совпадения</h2>
-            <button class="settings-btn">
-                <i class="fas fa-cog"></i>
-            </button>
+            <h2>Чаты</h2>
         </div>
 
         <!-- Matches List -->
