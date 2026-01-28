@@ -1582,7 +1582,7 @@
 
         .user-profile-avatar-section {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .user-profile-avatar {
@@ -1715,8 +1715,8 @@
         .user-stats-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 16px;
         }
 
         /* Daily Limits & Subscription Cards Row */
@@ -1738,20 +1738,25 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            padding: 20px;
+            padding: 18px;
+            min-height: 160px;
+            max-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .limits-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .limits-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
         }
 
         .limit-item {
@@ -1761,37 +1766,40 @@
         }
 
         .limit-value {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
             color: white;
         }
 
         .limit-label {
-            font-size: 12px;
+            font-size: 11px;
             color: rgba(255, 255, 255, 0.6);
         }
 
         /* Subscription Ad Card (Right) */
         .subscription-ad-card {
-            background: linear-gradient(135deg, #feca57 0%, #ff9f43 50%, #f093fb 100%);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
             padding: 0;
             overflow: hidden;
             position: relative;
             cursor: pointer;
             transition: transform 0.3s, box-shadow 0.3s;
-            min-height: 140px;
+            min-height: 160px;
+            max-height: 160px;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
         }
 
         .subscription-ad-card:active {
-            transform: scale(0.98);
+            transform: scale(0.97);
         }
 
         .subscription-ad-card:hover {
-            box-shadow: 0 10px 30px rgba(254, 202, 87, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.2);
         }
 
         .ad-image-wrapper {
@@ -1829,49 +1837,50 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
+            flex: 1;
+            justify-content: flex-end;
         }
 
         .ad-text {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
-            color: white;
+            color: rgba(255, 255, 255, 0.95);
             margin: 0;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            line-height: 1.4;
         }
 
         .ad-button {
-            background: rgba(255, 255, 255, 0.95);
+            background: linear-gradient(135deg, #feca57 0%, #ff9f43 100%);
             border: none;
             border-radius: 20px;
-            padding: 10px 24px;
-            font-size: 14px;
+            padding: 8px 20px;
+            font-size: 13px;
             font-weight: 700;
             color: #1a0b2e;
             cursor: pointer;
             transition: all 0.3s;
             align-self: flex-start;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 8px rgba(254, 202, 87, 0.3);
             position: relative;
             z-index: 3;
         }
 
         .ad-button:hover {
-            background: white;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #ffd93d 0%, #ffa726 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(254, 202, 87, 0.4);
         }
 
         .ad-button:active {
             transform: scale(0.95);
-            background: white;
         }
 
         /* Profile Navigation Buttons */
         .profile-nav-buttons {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 20px;
         }
 
@@ -1879,10 +1888,10 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
-            padding: 15px 20px;
+            padding: 14px 18px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             cursor: pointer;
             transition: all 0.3s;
             width: 100%;
@@ -1899,27 +1908,27 @@
         }
 
         .nav-btn-icon {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: rgba(240, 147, 251, 0.1);
             border-radius: 10px;
-            font-size: 18px;
+            font-size: 16px;
             color: rgba(240, 147, 251, 1);
             flex-shrink: 0;
         }
 
         .nav-btn-text {
             flex: 1;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             color: white;
         }
 
         .nav-btn-arrow {
-            font-size: 14px;
+            font-size: 12px;
             color: rgba(255, 255, 255, 0.5);
             flex-shrink: 0;
         }
@@ -2381,7 +2390,6 @@
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="user-profile-name" id="userProfileName">Пользователь</div>
-                <div class="user-profile-id" id="userProfileId">ID: —</div>
             </div>
 
             <!-- Stats Cards -->

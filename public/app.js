@@ -1732,9 +1732,6 @@ async function showUserProfile() {
         if (userData.success && userData.user) {
             const user = userData.user;
             
-            // Set user ID
-            document.getElementById('userProfileId').textContent = `ID: ${userId}`;
-            
             // Get Telegram user info and profile picture
             if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
