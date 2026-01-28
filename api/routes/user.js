@@ -54,9 +54,6 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
     const user = await User.findOne({ telegramId });
     
     if (!user) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'user.js:user-entitlements',message:'Backend entitlements: user NOT found',data:{telegramId,userFound:false},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       return res.json({
         success: true,
         subscriptionLevel: 'free',
@@ -72,12 +69,6 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
       const val = unlocked[k];
       unlockedPhotos[key] = Array.isArray(val) ? val.slice() : (val ? [val] : []);
     });
-    // #region agent log
-    const rawKeys = Object.keys(unlocked);
-    const firstKey = rawKeys[0];
-    const firstArr = firstKey ? (unlocked[firstKey] || []) : [];
-    fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'user.js:user-entitlements',message:'Backend entitlements response',data:{telegramId,userFound:true,rawKeys,responseKeys:Object.keys(unlockedPhotos),firstKey,firstArrLen:firstArr.length,firstUrlLen:firstArr[0]?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,C'})}).catch(()=>{});
-    // #endregion
     res.json({
       success: true,
       subscriptionLevel: user.subscriptionLevel || 'free',

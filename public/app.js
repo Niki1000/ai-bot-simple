@@ -2206,7 +2206,7 @@ function isPhotoUnlocked(url, unlockedList) {
 async function loadEntitlements() {
     try {
         const id = (typeof userId === 'number' ? userId : parseInt(userId, 10)) || userId;
-        const entRes = await apiFetch(`/api/webapp/user-entitlements/${id}?t=${Date.now()}`, {}, 1);
+        const entRes = await apiFetch(`/api/webapp/user/user-entitlements/${id}?t=${Date.now()}`, {}, 1);
         const entData = await safeJsonParse(entRes);
         if (entData && entData.success) {
             userEntitlements.subscriptionLevel = entData.subscriptionLevel || 'free';
@@ -2214,20 +2214,10 @@ async function loadEntitlements() {
             userEntitlements.unlockedPhotos = entData.unlockedPhotos && typeof entData.unlockedPhotos === 'object' ? { ...entData.unlockedPhotos } : {};
             apiCache.entitlements = { ...userEntitlements };
             apiCache.entitlementsTimestamp = Date.now();
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:loadEntitlements',message:'Frontend entitlements loaded',data:{success:true,unlockedKeys:Object.keys(userEntitlements.unlockedPhotos||{}),hasData:!!entData.unlockedPhotos},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             console.log('🔑 Entitlements loaded (unlockedPhotos keys):', Object.keys(userEntitlements.unlockedPhotos || {}));
-        } else {
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:loadEntitlements',message:'Frontend entitlements: no success or no data',data:{success:entData?.success,hasUnlocked:!!entData?.unlockedPhotos},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
         }
     } catch (e) {
         console.error('Failed to load entitlements:', e);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:loadEntitlements',message:'Frontend loadEntitlements error',data:{error:String(e?.message||e)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
     }
 }
 
@@ -2272,9 +2262,6 @@ async function openCharacterProfile() {
     
     const unlocked2 = isPremium || isPhotoUnlocked(src2, unlockedForChar);
     const unlocked3 = isPremium || isPhotoUnlocked(src3, unlockedForChar);
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:openCharacterProfile',message:'Frontend gallery unlock state',data:{charKey,selectedGirlIdType:typeof selectedGirl._id,unlockedForCharLen:unlockedForChar.length,unlocked2,unlocked3,src2Len:src2?.length,firstUnlockedUrlLen:unlockedForChar[0]?.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
-    // #endregion
     
     function addGalleryItem(url, isUnlocked, levelLabel, clickHandler) {
         const item = document.createElement('div');
@@ -2327,9 +2314,6 @@ async function openChatMediaGallery() {
     const charKey = String(selectedGirl._id);
     const unlockedForChar = userEntitlements.unlockedPhotos?.[charKey] || [];
     const isPremium = userEntitlements.subscriptionLevel === 'premium';
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:openChatMediaGallery',message:'Frontend media gallery unlock state',data:{charKey,unlockedForCharLen:unlockedForChar.length,allKeys:Object.keys(userEntitlements.unlockedPhotos||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
-    // #endregion
     const allPhotos = [selectedGirl.avatarUrl].concat(selectedGirl.photos || []);
     allPhotos.forEach((url, index) => {
         const isUnlocked = index === 0 || isPremium || isPhotoUnlocked(url, unlockedForChar);

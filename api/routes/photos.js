@@ -29,9 +29,6 @@ router.post('/request-photo', async (req, res) => {
       user.unlockedPhotos = { ...prev, [characterId]: list };
       user.markModified('unlockedPhotos');
       await user.save();
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'photos.js:request-photo:after-save',message:'Backend request-photo unlockedPhotos saved',data:{characterId,photoUrlLen:randomPhoto?.length,keys:Object.keys(user.unlockedPhotos||{}),listLen:list.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return res.json({ success: true, photo: randomPhoto });
     }
     
