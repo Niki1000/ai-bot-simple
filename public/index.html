@@ -136,21 +136,21 @@
         /* App name above swipe cards - Clean & Attractive */
         .swipe-app-title {
             position: absolute;
-            top: clamp(50px, 7vh, 70px);
-            top: max(clamp(50px, 7vh, 70px), env(safe-area-inset-top));
+            top: clamp(20px, 3.5vh, 35px);
+            top: max(clamp(20px, 3.5vh, 35px), env(safe-area-inset-top));
             left: 50%;
             transform: translateX(-50%);
-            z-index: 20;
-            font-size: clamp(20px, 4.5vw, 24px);
+            z-index: 100;
+            font-size: clamp(18px, 4vw, 22px);
             font-weight: 700;
             color: #ffffff;
-            background: linear-gradient(135deg, #ffffff 0%, #e0b3ff 50%, #ffb3d9 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
             pointer-events: none;
             letter-spacing: 0.5px;
+            white-space: nowrap;
+            display: block;
+            visibility: visible;
+            opacity: 1;
         }
 
         .swipe-container {
