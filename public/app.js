@@ -2205,12 +2205,13 @@ function isPhotoUnlocked(url, unlockedList) {
 // Load entitlements (unlockedPhotos, credits, subscription) so profile/media show correct lock state after reload
 async function loadEntitlements() {
     try {
-        const entRes = await apiFetch(`/api/webapp/user-entitlements/${userId}`, {}, 1);
+        const id = (typeof userId === 'number' ? userId : parseInt(userId, 10)) || userId;
+        const entRes = await apiFetch(`/api/webapp/user-entitlements/${id}?t=${Date.now()}`, {}, 1);
         const entData = await safeJsonParse(entRes);
         if (entData && entData.success) {
             userEntitlements.subscriptionLevel = entData.subscriptionLevel || 'free';
             userEntitlements.credits = entData.credits ?? 0;
-            userEntitlements.unlockedPhotos = entData.unlockedPhotos || {};
+            userEntitlements.unlockedPhotos = entData.unlockedPhotos && typeof entData.unlockedPhotos === 'object' ? { ...entData.unlockedPhotos } : {};
             apiCache.entitlements = { ...userEntitlements };
             apiCache.entitlementsTimestamp = Date.now();
             console.log('🔑 Entitlements loaded (unlockedPhotos keys):', Object.keys(userEntitlements.unlockedPhotos || {}));

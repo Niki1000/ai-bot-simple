@@ -22,14 +22,13 @@ router.post('/request-photo', async (req, res) => {
     // Random chance based on sympathy
     if (Math.random() * 100 < chance && char.photos && char.photos.length > 0) {
       const randomPhoto = char.photos[Math.floor(Math.random() * char.photos.length)];
-      // Add to user's unlocked photos so it stays unlocked in profile and in chat (use string key for consistency)
-      if (!user.unlockedPhotos) user.unlockedPhotos = {};
-      if (!user.unlockedPhotos[characterId]) user.unlockedPhotos[characterId] = [];
-      if (!user.unlockedPhotos[characterId].includes(randomPhoto)) {
-        user.unlockedPhotos[characterId].push(randomPhoto);
-        user.markModified('unlockedPhotos');
-        await user.save();
-      }
+      // Add to user's unlocked photos (replace whole object so Mongoose persists)
+      const prev = user.unlockedPhotos || {};
+      const list = Array.isArray(prev[characterId]) ? prev[characterId].slice() : [];
+      if (!list.includes(randomPhoto)) list.push(randomPhoto);
+      user.unlockedPhotos = { ...prev, [characterId]: list };
+      user.markModified('unlockedPhotos');
+      await user.save();
       return res.json({ success: true, photo: randomPhoto });
     }
     

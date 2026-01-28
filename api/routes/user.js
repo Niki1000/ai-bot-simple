@@ -47,7 +47,11 @@ router.post('/select-character', async (req, res) => {
 router.get('/user-entitlements/:telegramId', async (req, res) => {
   try {
     await connectDB();
-    const user = await User.findOne({ telegramId: parseInt(req.params.telegramId) });
+    const telegramId = parseInt(req.params.telegramId, 10);
+    if (isNaN(telegramId)) {
+      return res.json({ success: true, subscriptionLevel: 'free', credits: 0, unlockedPhotos: {} });
+    }
+    const user = await User.findOne({ telegramId });
     
     if (!user) {
       return res.json({

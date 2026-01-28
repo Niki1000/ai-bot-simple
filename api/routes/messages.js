@@ -34,14 +34,13 @@ router.post('/save-message', async (req, res) => {
     if (photoUrl) msgEntry.photoUrl = photoUrl;
     user.chatHistory[characterId].push(msgEntry);
 
-    // When girl sends a photo in chat, add it to unlocked so it stays unlocked in profile
+    // When girl sends a photo in chat, add it to unlocked so it stays unlocked after reload
     if (photoUrl && sender === 'bot') {
-      if (!user.unlockedPhotos) user.unlockedPhotos = {};
-      if (!user.unlockedPhotos[characterId]) user.unlockedPhotos[characterId] = [];
-      if (!user.unlockedPhotos[characterId].includes(photoUrl)) {
-        user.unlockedPhotos[characterId].push(photoUrl);
-        user.markModified('unlockedPhotos');
-      }
+      const prev = user.unlockedPhotos || {};
+      const list = Array.isArray(prev[characterId]) ? prev[characterId].slice() : [];
+      if (!list.includes(photoUrl)) list.push(photoUrl);
+      user.unlockedPhotos = { ...prev, [characterId]: list };
+      user.markModified('unlockedPhotos');
     }
 
     // Update stats for user messages with improved sympathy calculation
