@@ -226,6 +226,28 @@ window.addEventListener('unhandledrejection', (event) => {
     event.preventDefault();
 });
 
+// Track pending message saves to prevent data loss on navigation
+let pendingSaves = new Set();
+
+// Add save promise to tracking
+function trackSave(promise) {
+    const id = Date.now() + Math.random();
+    pendingSaves.add(id);
+    promise.finally(() => {
+        pendingSaves.delete(id);
+    });
+    return promise;
+}
+
+// Warn before leaving if there are pending saves (optional - can be removed if too intrusive)
+window.addEventListener('beforeunload', (event) => {
+    if (pendingSaves.size > 0) {
+        // Modern browsers ignore custom messages, but still show dialog
+        event.preventDefault();
+        event.returnValue = '';
+    }
+});
+
 // Call init on page load (removed duplicate - handled by DOMContentLoaded)
 
 // Debug logging
@@ -907,45 +929,79 @@ async function sendMessage() {
         removeTypingIndicator();
 
         if (chatData.success && chatData.response) {
-            // Simulate typing delay for more natural feel
-            setTimeout(async () => {
-                // 3. Add bot message to UI
-                addMessage(chatData.response, 'bot');
-
-                // 4. Save bot message to DB (non-blocking - don't fail if this errors)
-                try {
-                    await apiFetch('/api/webapp/save-message', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            telegramId: userId,
-                            characterId: selectedGirl._id,
-                            message: chatData.response,
-                            sender: 'bot'
-                        })
-                    }, 1); // Only 1 retry for saving bot message
-                } catch (saveError) {
-                    console.error('❌ Failed to save bot message (non-critical):', saveError);
-                    // Don't show error to user - message is already displayed
-                }
-
-                // Mark message as read since chat is open
-                lastReadMessages[selectedGirl._id] = Date.now();
-                localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+            // CRITICAL: Save bot message to DB FIRST (before UI delay)
+            // This ensures message is persisted even if user navigates away
+            let botMessageSaved = false;
+            try {
+                const savePromise = apiFetch('/api/webapp/save-message', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        telegramId: userId,
+                        characterId: selectedGirl._id,
+                        message: chatData.response,
+                        sender: 'bot'
+                    })
+                }, 2); // 2 retries to ensure save succeeds
                 
-                // Update mission progress (message mission)
-                if (dailyMissions && dailyMissions[2]) {
-                    dailyMissions[2].progress = Math.min(dailyMissions[2].target, (dailyMissions[2].progress || 0) + 1);
-                }
+                // Track this save to prevent data loss
+                trackSave(savePromise);
                 
-                // Update matches tab notification
-                updateMatchesTabNotification();
+                await savePromise;
+                botMessageSaved = true;
+                console.log('✅ Bot message saved to DB');
+            } catch (saveError) {
+                console.error('❌ CRITICAL: Failed to save bot message:', saveError);
+                // Show error to user since message won't persist
+                const isNetworkError = saveError.message.includes('fetch') || saveError.message.includes('Network');
+                showError('Не удалось сохранить сообщение. Проверьте интернет.', isNetworkError);
+            }
 
-                console.log('✅ Message sent and saved');
-            }, 800 + Math.random() * 700); // Random delay 800-1500ms for realism
+            // Only add to UI if save succeeded (or if we want to show it anyway for UX)
+            if (botMessageSaved) {
+                // Simulate typing delay for more natural feel (UI only)
+                setTimeout(() => {
+                    // Add bot message to UI
+                    addMessage(chatData.response, 'bot');
+
+                    // Mark message as read since chat is open
+                    lastReadMessages[selectedGirl._id] = Date.now();
+                    localStorage.setItem('lastReadMessages', JSON.stringify(lastReadMessages));
+                    
+                    // Update mission progress (message mission)
+                    if (dailyMissions && dailyMissions[2]) {
+                        dailyMissions[2].progress = Math.min(dailyMissions[2].target, (dailyMissions[2].progress || 0) + 1);
+                    }
+                    
+                    // Update matches tab notification
+                    updateMatchesTabNotification();
+
+                    console.log('✅ Message displayed in UI');
+                }, 800 + Math.random() * 700); // Random delay 800-1500ms for realism
+            } else {
+                // If save failed, still show message but warn user
+                addMessage(chatData.response + '\n\n⚠️ Сообщение может не сохраниться', 'bot');
+                input.disabled = false;
+            }
         } else {
             // Show error message from API or default
             const errorMsg = chatData.response || chatData.error || 'Ошибка получения ответа 😢';
             addMessage(errorMsg, 'bot');
+            
+            // Try to save error message too (so user knows what happened)
+            try {
+                await apiFetch('/api/webapp/save-message', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        telegramId: userId,
+                        characterId: selectedGirl._id,
+                        message: errorMsg,
+                        sender: 'bot'
+                    })
+                }, 1);
+            } catch (e) {
+                console.error('Failed to save error message:', e);
+            }
+            
             console.error('❌ Chat API error:', chatData.error || 'Unknown error');
         }
     } catch (error) {
