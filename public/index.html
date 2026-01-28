@@ -136,9 +136,8 @@
         /* App name above swipe cards - Clean & Attractive */
         .swipe-app-title {
             position: absolute;
-            top: 50%;
-            top: calc(50% - clamp(280px, 35vh, 360px));
-            top: max(calc(50% - clamp(280px, 35vh, 360px)), clamp(30px, 5vh, 45px));
+            top: clamp(50px, 7vh, 70px);
+            top: max(clamp(50px, 7vh, 70px), env(safe-area-inset-top));
             left: 50%;
             transform: translateX(-50%);
             z-index: 20;
@@ -160,7 +159,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: clamp(70px, 9vh, 95px) 12px 170px 12px;
+            padding: clamp(85px, 10vh, 105px) 12px 170px 12px;
         }
 
         /* Profile Card - Bigger & More Attractive */
