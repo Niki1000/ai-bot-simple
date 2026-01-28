@@ -12,7 +12,7 @@ let lastReadMessages = {}; // Track last read message timestamp per character: {
 let isChatLoading = false; // Prevent multiple simultaneous chat loads
 
 // Performance: Cache for API responses
-let apiCache = {
+const apiCache = {
     userData: null,
     userDataTimestamp: 0,
     matches: null,
@@ -137,7 +137,7 @@ function showError(message, isNetworkError = false) {
 // Set Telegram user profile picture
 function setTelegramProfilePicture(elementId) {
     const element = document.getElementById(elementId);
-    if (!element) return;
+    if (!element) {return;}
     
     if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
         const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
@@ -232,7 +232,7 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // Track pending message saves to prevent data loss on navigation
-let pendingSaves = new Set();
+const pendingSaves = new Set();
 
 // Add save promise to tracking
 function trackSave(promise) {
@@ -408,7 +408,7 @@ let dragListenersInitialized = false;
 
 function setupDrag() {
     const card = document.querySelector('.profile-card');
-    if (!card) return;
+    if (!card) {return;}
 
     // Add listeners to the current card
     card.addEventListener('mousedown', dragStart);
@@ -434,13 +434,13 @@ function dragStart(e) {
 }
 
 function drag(e) {
-    if (!isDragging) return;
+    if (!isDragging) {return;}
 
     currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     const deltaX = currentX - startX;
 
     const card = document.querySelector('.profile-card.dragging');
-    if (!card) return;
+    if (!card) {return;}
 
     const rotation = deltaX * 0.1;
     card.style.transform = `translateX(${deltaX}px) rotate(${rotation}deg)`;
@@ -448,11 +448,11 @@ function drag(e) {
 }
 
 function dragEnd() {
-    if (!isDragging) return;
+    if (!isDragging) {return;}
     isDragging = false;
 
     const card = document.querySelector('.profile-card.dragging');
-    if (!card) return;
+    if (!card) {return;}
 
     const deltaX = currentX - startX;
 
@@ -472,7 +472,7 @@ function dragEnd() {
 // Swipe card (like/pass) - FIXED
 function swipeCard(action) {
     const card = document.querySelector('.profile-card');
-    if (!card) return;
+    if (!card) {return;}
 
     const girlId = card.dataset.girlId;
     const girl = girls.find(g => g._id === girlId);
@@ -650,7 +650,7 @@ async function openChat() {
             // Build messages synchronously first
             const messageElements = [];
             
-            historyData.history.forEach((msg, index) => {
+            historyData.history.forEach((msg, _index) => {
                 // Create message element
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${msg.sender}`;
@@ -802,7 +802,7 @@ async function getTotalUnreadCount() {
             apiCache.userDataTimestamp = now;
         }
         
-        if (!userData.success || !userData.user) return 0;
+        if (!userData.success || !userData.user) {return 0;}
         
         const user = userData.user;
         
@@ -817,7 +817,7 @@ async function getTotalUnreadCount() {
             apiCache.matchesTimestamp = now;
         }
         
-        if (!matchesData.success) return 0;
+        if (!matchesData.success) {return 0;}
         
         let totalUnread = 0;
         
@@ -827,7 +827,7 @@ async function getTotalUnreadCount() {
             
             if (chatHistory.length > 0) {
                 const unread = chatHistory.filter(msg => {
-                    if (msg.sender !== 'bot') return false;
+                    if (msg.sender !== 'bot') {return false;}
                     const msgTime = new Date(msg.timestamp).getTime();
                     return msgTime > lastReadTime;
                 }).length;
@@ -851,7 +851,7 @@ async function updateMatchesTabNotification() {
     const totalUnread = await getTotalUnreadCount();
     const matchesNavItem = document.querySelectorAll('.nav-item')[1];
     
-    if (!matchesNavItem) return;
+    if (!matchesNavItem) {return;}
     
     // Remove existing badge
     const existingBadge = matchesNavItem.querySelector('.nav-notification-badge');
@@ -1055,7 +1055,7 @@ async function sendMessage() {
 
 // Format timestamp to relative time
 function formatTimestamp(timestamp) {
-    if (!timestamp) return '';
+    if (!timestamp) {return '';}
     
     const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     const now = new Date();
@@ -1065,10 +1065,10 @@ function formatTimestamp(timestamp) {
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
     
-    if (seconds < 60) return 'только что';
-    if (minutes < 60) return `${minutes} ${minutes === 1 ? 'мин' : 'мин'} назад`;
-    if (hours < 24) return `${hours} ${hours === 1 ? 'час' : 'часов'} назад`;
-    if (days < 7) return `${days} ${days === 1 ? 'день' : 'дней'} назад`;
+    if (seconds < 60) {return 'только что';}
+    if (minutes < 60) {return `${minutes} ${minutes === 1 ? 'мин' : 'мин'} назад`;}
+    if (hours < 24) {return `${hours} ${hours === 1 ? 'час' : 'часов'} назад`;}
+    if (days < 7) {return `${days} ${days === 1 ? 'день' : 'дней'} назад`;}
     
     // For older messages, show date
     return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
@@ -1201,7 +1201,7 @@ function removeTypingIndicator() {
 
 // Request photo
 async function requestPhoto() {
-    if (!selectedGirl) return;
+    if (!selectedGirl) {return;}
 
     if (sympathy < 10) {
         if (window.Telegram?.WebApp) {
@@ -1337,10 +1337,10 @@ function updateSympathyBar() {
 
 // Calculate and display character mood based on sympathy
 function updateMoodIndicator() {
-    if (!selectedGirl) return;
+    if (!selectedGirl) {return;}
     
     const moodElement = document.getElementById('characterMood');
-    if (!moodElement) return;
+    if (!moodElement) {return;}
     
     let mood = 'neutral';
     let moodText = '😐';
@@ -1494,11 +1494,10 @@ async function loadMatches() {
             // Get last message from chat history, or fall back to welcome message
             const chatHistory = userData.user?.chatHistory?.[girl._id] || [];
             let lastMessage = girl.welcomeMessage || 'Привет! 💕';
-            let lastMessageTime = null;
             if (chatHistory.length > 0) {
                 const lastMsg = chatHistory[chatHistory.length - 1];
                 lastMessage = lastMsg.message;
-                lastMessageTime = lastMsg.timestamp;
+                // Note: lastMsg.timestamp available if needed for future features
             }
             
             // Calculate unread messages (bot messages after last read)
@@ -1509,7 +1508,7 @@ async function loadMatches() {
                 if (lastReadTime > 0) {
                     // Count bot messages after last read time
                     unreadCount = chatHistory.filter(msg => {
-                        if (msg.sender !== 'bot') return false;
+                        if (msg.sender !== 'bot') {return false;}
                         const msgTime = new Date(msg.timestamp).getTime();
                         return msgTime > lastReadTime;
                     }).length;
@@ -1684,7 +1683,7 @@ function resetCards() {
 // ==================== USER PROFILE ====================
 
 // Daily missions data
-let dailyMissions = [
+const dailyMissions = [
     { id: 'swipe_5', title: 'Просмотреть 5 профилей', icon: '👆', target: 5, progress: 0, reward: 10 },
     { id: 'like_3', title: 'Лайкнуть 3 девушек', icon: '❤️', target: 3, progress: 0, reward: 15 },
     { id: 'message_10', title: 'Отправить 10 сообщений', icon: '💬', target: 10, progress: 0, reward: 20 },
@@ -1953,7 +1952,7 @@ async function loadDailyMissions() {
 
         // Render missions
         const missionsList = document.getElementById('dailyMissionsList');
-        if (!missionsList) return;
+        if (!missionsList) {return;}
 
         missionsList.innerHTML = '';
 
@@ -2103,7 +2102,7 @@ let userEntitlements = {
 
 // Open character profile view
 async function openCharacterProfile() {
-    if (!selectedGirl) return;
+    if (!selectedGirl) {return;}
     
     console.log('👤 Opening profile for:', selectedGirl.name);
     
@@ -2368,6 +2367,8 @@ async function unlockPhoto(photoUrl) {
 }
 
 // Show locked photo message (legacy, kept for compatibility)
+// Note: This function may be used in future or kept for API compatibility
+// eslint-disable-next-line no-unused-vars
 function showLockedPhotoMessage() {
     const message = 'Эта фотография заблокирована 🔒\nНабери больше симпатии или оформи подписку!';
     if (window.Telegram?.WebApp) {
@@ -2376,6 +2377,56 @@ function showLockedPhotoMessage() {
         alert(message);
     }
 }
+
+// Onboarding system
+function checkAndShowOnboarding() {
+    const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+    
+    if (!hasSeenOnboarding) {
+        // Show onboarding after a short delay
+        setTimeout(() => {
+            showOnboarding();
+        }, 1000);
+    }
+}
+
+function showOnboarding() {
+    const message = `👋 Добро пожаловать в AI Dating!\n\n` +
+        `📱 Как пользоваться:\n` +
+        `• Свайпай карточки влево (👎) или вправо (❤️)\n` +
+        `• Лайкнутые девушки появятся в разделе "Сообщения"\n` +
+        `• Напиши сообщение, чтобы начать общение\n` +
+        `• Набери симпатию, чтобы получить фото\n` +
+        `• Выполняй задания для получения кредитов\n\n` +
+        `💡 Совет: Чем больше пишешь, тем выше симпатия!`;
+    
+    if (window.Telegram?.WebApp) {
+        tg.showAlert(message, () => {
+            localStorage.setItem('hasSeenOnboarding', 'true');
+        });
+    } else {
+        alert(message);
+        localStorage.setItem('hasSeenOnboarding', 'true');
+    }
+}
+
+// Export functions to window for HTML onclick handlers
+window.swipeCard = swipeCard;
+window.selectGirl = selectGirl;
+window.backToSwipe = backToSwipe;
+window.sendMessage = sendMessage;
+window.requestPhoto = requestPhoto;
+window.closePhotoModal = closePhotoModal;
+window.handleEnter = handleEnter;
+window.showMatches = showMatches;
+window.showSwipe = showSwipe;
+window.resetCards = resetCards;
+window.showUserProfile = showUserProfile;
+window.showUpgradeModal = showUpgradeModal;
+window.getTestCredits = getTestCredits;
+window.showSettings = showSettings;
+window.closeCharacterProfile = closeCharacterProfile;
+window.openCharacterProfile = openCharacterProfile;
 
 // Start app
 document.addEventListener('DOMContentLoaded', initApp);

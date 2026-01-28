@@ -7,7 +7,7 @@ const bot = new TelegramBot(token);
 const mongoUrl = process.env.MONGODB_URI;
 
 async function connectDB() {
-  if (mongoose.connection.readyState >= 1) return;
+  if (mongoose.connection.readyState >= 1) {return;}
   await mongoose.connect(mongoUrl);
   console.log('✅ Bot DB connected');
 }
@@ -37,6 +37,8 @@ const charSchema = new mongoose.Schema({
   isActive: Boolean
 });
 
+// Character is used, User is kept for potential future use
+// eslint-disable-next-line no-unused-vars
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 const Character = mongoose.models.Character || mongoose.model('Character', charSchema);
 
@@ -207,7 +209,10 @@ async function handleUpdate(update) {
     if (update.message) {
       try {
         await bot.sendMessage(update.message.chat.id, 'Извини, произошла ошибка 😢');
-      } catch (e) {}
+      } catch (e) {
+        // Ignore errors when sending error message (to prevent infinite loop)
+        console.error('Failed to send error message:', e);
+      }
     }
   }
 }

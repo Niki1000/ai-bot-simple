@@ -21,7 +21,7 @@ function calculateSympathyPoints(message) {
 
 // Helper function to recalculate sympathy from all messages
 function recalculateSympathy(chatHistory) {
-  if (!chatHistory || !Array.isArray(chatHistory)) return 0;
+  if (!chatHistory || !Array.isArray(chatHistory)) {return 0;}
   
   let totalSympathy = 0;
   const now = new Date();

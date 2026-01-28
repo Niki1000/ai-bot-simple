@@ -16,7 +16,10 @@ const userSchema = new mongoose.Schema({
     lastReset: Date,
     completed: [String],
     progress: Object
-  }
+  },
+  lastAICall: Date, // For rate limiting
+  aiCallCount: { type: Number, default: 0 }, // Daily AI call counter
+  aiCallResetDate: Date // Date when counter was last reset
 }, { strict: false });
 
 // Character schema

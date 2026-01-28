@@ -25,9 +25,9 @@ router.post('/save-message', async (req, res) => {
     }
     
     // Initialize nested objects if needed
-    if (!user.chatHistory) user.chatHistory = {};
-    if (!user.sympathy) user.sympathy = {};
-    if (!user.chatHistory[characterId]) user.chatHistory[characterId] = [];
+    if (!user.chatHistory) {user.chatHistory = {};}
+    if (!user.sympathy) {user.sympathy = {};}
+    if (!user.chatHistory[characterId]) {user.chatHistory[characterId] = [];}
 
     // Add message to history
     user.chatHistory[characterId].push({

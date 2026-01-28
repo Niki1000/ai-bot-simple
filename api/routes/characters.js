@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     let chars = await Character.find({ isActive: true });
     console.log(`✅ Found ${chars.length} characters`);
     
-    // If telegramId provided, filter out characters that are liked AND have chat history
+    // If telegramId provided, filter and order characters
     if (telegramId) {
       const user = await User.findOne({ telegramId });
       
@@ -33,8 +33,41 @@ router.get('/', async (req, res) => {
         });
         
         console.log(`🔍 Filtered: ${likedWithChat.length} characters removed (liked + chat exists)`);
-        console.log(`✅ Returning ${chars.length} characters for swipe`);
       }
+      
+      // Order characters by user preferences (sympathy, interaction history)
+      if (user && user.sympathy) {
+        chars.sort((a, b) => {
+          const aId = a._id.toString();
+          const bId = b._id.toString();
+          const aSympathy = user.sympathy[aId] || 0;
+          const bSympathy = user.sympathy[bId] || 0;
+          const aPassed = user.passes?.includes(aId) || false;
+          const bPassed = user.passes?.includes(bId) || false;
+          
+          // Never show passed characters first
+          if (aPassed && !bPassed) return 1;
+          if (!aPassed && bPassed) return -1;
+          
+          // Show characters with higher sympathy first (but not too high - variety)
+          // Prefer characters with some interaction (sympathy > 0) but not too much
+          if (aSympathy > 0 && bSympathy === 0) return -1;
+          if (aSympathy === 0 && bSympathy > 0) return 1;
+          
+          // For characters with sympathy, prefer moderate levels (5-30) for variety
+          const aScore = aSympathy > 0 && aSympathy < 30 ? 1 : 0;
+          const bScore = bSympathy > 0 && bSympathy < 30 ? 1 : 0;
+          if (aScore !== bScore) return bScore - aScore;
+          
+          // Otherwise randomize
+          return Math.random() - 0.5;
+        });
+      } else {
+        // Randomize if no user data
+        chars.sort(() => Math.random() - 0.5);
+      }
+      
+      console.log(`✅ Returning ${chars.length} characters for swipe (ordered by preferences)`);
     }
     
     res.json({ success: true, characters: chars });

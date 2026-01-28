@@ -10,7 +10,7 @@ router.post('/add-credits', async (req, res) => {
     await connectDB();
     const { telegramId, amount } = req.body;
     
-    let user = await User.findOne({ telegramId: parseInt(telegramId) });
+    const user = await User.findOne({ telegramId: parseInt(telegramId) });
     
     if (!user) {
       return res.json({ success: false, error: 'User not found' });
@@ -54,7 +54,7 @@ router.post('/recalculate-sympathy', async (req, res) => {
     const newSympathy = recalculateSympathy(user.chatHistory[characterId]);
     
     // Update sympathy
-    if (!user.sympathy) user.sympathy = {};
+    if (!user.sympathy) {user.sympathy = {};}
     user.sympathy[characterId] = newSympathy;
     user.markModified('sympathy');
     await user.save();

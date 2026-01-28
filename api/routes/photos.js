@@ -42,7 +42,7 @@ router.post('/unlock-photo', async (req, res) => {
     
     console.log(`📸 Unlock request: user ${telegramId}, char ${characterId}, photo ${photoUrl}`);
     
-    let user = await User.findOne({ telegramId: parseInt(telegramId) });
+    const user = await User.findOne({ telegramId: parseInt(telegramId) });
     
     if (!user) {
       return res.json({ success: false, error: 'User not found' });
@@ -62,8 +62,8 @@ router.post('/unlock-photo', async (req, res) => {
     }
     
     // Initialize unlockedPhotos if needed
-    if (!user.unlockedPhotos) user.unlockedPhotos = {};
-    if (!user.unlockedPhotos[characterId]) user.unlockedPhotos[characterId] = [];
+    if (!user.unlockedPhotos) {user.unlockedPhotos = {};}
+    if (!user.unlockedPhotos[characterId]) {user.unlockedPhotos[characterId] = [];}
     
     // Check if already unlocked
     if (user.unlockedPhotos[characterId].includes(photoUrl)) {
