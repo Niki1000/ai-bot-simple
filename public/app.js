@@ -112,19 +112,24 @@ async function safeJsonParse(response) {
  * @param {boolean} isNetworkError - Whether it's a network error
  */
 function showError(message, isNetworkError = false) {
-    const errorMsg = isNetworkError 
-        ? 'Проблема с интернетом. Проверьте соединение и попробуйте снова.'
-        : message || 'Произошла ошибка. Попробуйте позже.';
+    let errorMsg;
+    
+    if (isNetworkError) {
+        errorMsg = 'Проблема с интернетом. Проверьте соединение и попробуйте снова.';
+    } else if (message) {
+        errorMsg = message;
+    } else {
+        errorMsg = 'Произошла ошибка. Попробуйте позже.';
+    }
+    
+    console.error('❌ Error shown to user:', errorMsg);
     
     if (window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.showAlert(errorMsg);
     } else {
-        // Fallback for non-Telegram environment
         alert(errorMsg);
     }
-    
-    console.error('❌ Error:', message);
 }
 
 // ==================== END API UTILITIES ====================
@@ -283,10 +288,10 @@ async function loadGirls() {
             if (swipeView) {
                 swipeView.innerHTML = `
                     <div style="color: white; text-align: center; padding: 40px;">
-                        <h3>😢 Нет девушек</h3>
-                        <p>Проверьте базу данных</p>
-                        <button onclick="loadGirls()" style="background: #f093fb; border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 20px; cursor: pointer;">
-                            Обновить
+                        <h3>😢 Нет доступных девушек</h3>
+                        <p style="margin: 15px 0; color: rgba(255,255,255,0.7);">Все девушки уже просмотрены или база данных пуста</p>
+                        <button onclick="resetCards()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; padding: 12px 24px; border-radius: 25px; color: white; font-weight: 600; margin-top: 20px; cursor: pointer; transition: transform 0.2s;">
+                            <i class="fas fa-redo"></i> Обновить
                         </button>
                     </div>
                 `;
@@ -576,6 +581,7 @@ async function openChat() {
 
     if (!selectedGirl) {
         console.error('❌ No selected girl');
+        showError('Ошибка: персонаж не выбран. Пожалуйста, выберите девушку из списка совпадений.');
         return;
     }
 
@@ -867,7 +873,35 @@ async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
 
-    if (!message || !selectedGirl) return;
+    // Validation
+    if (!message) {
+        if (window.Telegram?.WebApp) {
+            tg.showAlert('Пожалуйста, введите сообщение');
+        } else {
+            alert('Пожалуйста, введите сообщение');
+        }
+        return;
+    }
+
+    if (!selectedGirl) {
+        console.error('❌ No selected girl');
+        if (window.Telegram?.WebApp) {
+            tg.showAlert('Ошибка: персонаж не выбран. Пожалуйста, выберите девушку из списка совпадений.');
+        } else {
+            alert('Ошибка: персонаж не выбран');
+        }
+        return;
+    }
+
+    // Sanitize message length (prevent extremely long messages)
+    if (message.length > 1000) {
+        if (window.Telegram?.WebApp) {
+            tg.showAlert('Сообщение слишком длинное. Максимум 1000 символов.');
+        } else {
+            alert('Сообщение слишком длинное. Максимум 1000 символов.');
+        }
+        return;
+    }
 
     // Add user message to UI immediately
     addMessage(message, 'user');
