@@ -672,10 +672,10 @@ async function openChat() {
                 
                 let messageContent = '';
                 if (msg.sender === 'bot' && msg.photoUrl) {
-                    const safeUrl = String(msg.photoUrl).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const urlForAttr = String(msg.photoUrl).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
                     messageContent = `
                         <div class="message-text">${(msg.message || '').replace(/</g, '&lt;')}</div>
-                        <div class="message-photo"><img src="${safeUrl}" alt="Фото" class="chat-photo-img" data-photo-url="${safeUrl}"></div>
+                        <div class="message-photo"><img src="${urlForAttr}" alt="Фото" class="chat-photo-img" data-photo-url="${urlForAttr}"></div>
                     `;
                 } else if (msg.sender === 'bot') {
                     const parsed = parseThoughtsAndMessage(msg.message);
@@ -1146,10 +1146,10 @@ function addMessage(text, sender, timestamp = null, photoUrl = null) {
     
     let messageContent = '';
     if (photoUrl && sender === 'bot') {
-        const safeUrl = String(photoUrl).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const urlForAttr = String(photoUrl).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         messageContent = `
             <div class="message-text">${(text || '').replace(/</g, '&lt;')}</div>
-            <div class="message-photo"><img src="${safeUrl}" alt="Фото" class="chat-photo-img" data-photo-url="${safeUrl}"></div>
+            <div class="message-photo"><img src="${urlForAttr}" alt="Фото" class="chat-photo-img" data-photo-url="${urlForAttr}"></div>
         `;
     } else if (sender === 'bot') {
         const parsed = parseThoughtsAndMessage(text);
@@ -1233,6 +1233,22 @@ async function requestPhoto() {
         return;
     }
 
+    const userPhotoRequestMsg = '📸 Запрос фото';
+    addMessage(userPhotoRequestMsg, 'user');
+    try {
+        await apiFetch('/api/webapp/save-message', {
+            method: 'POST',
+            body: JSON.stringify({
+                telegramId: userId,
+                characterId: selectedGirl._id,
+                message: userPhotoRequestMsg,
+                sender: 'user'
+            })
+        });
+    } catch (saveErr) {
+        console.error('❌ Failed to save user photo-request message:', saveErr);
+    }
+
     try {
         const response = await apiFetch('/api/webapp/request-photo', {
             method: 'POST',
@@ -1247,7 +1263,7 @@ async function requestPhoto() {
         if (data.success && data.photo) {
             const photoMsg = 'Вот моё фото! 📸💕';
             try {
-                await apiFetch('/api/webapp/save-message', {
+                const saveRes = await apiFetch('/api/webapp/save-message', {
                     method: 'POST',
                     body: JSON.stringify({
                         telegramId: userId,
@@ -1257,7 +1273,13 @@ async function requestPhoto() {
                         photoUrl: data.photo
                     })
                 });
-            } catch (_) { /* non-blocking */ }
+                const saveResult = await safeJsonParse(saveRes);
+                if (!saveResult.success) {
+                    console.error('❌ Save photo message failed:', saveResult.error);
+                }
+            } catch (saveErr) {
+                console.error('❌ Failed to save bot photo message:', saveErr);
+            }
             if (!userEntitlements.unlockedPhotos) userEntitlements.unlockedPhotos = {};
             if (!userEntitlements.unlockedPhotos[selectedGirl._id]) userEntitlements.unlockedPhotos[selectedGirl._id] = [];
             if (!userEntitlements.unlockedPhotos[selectedGirl._id].includes(data.photo)) {
