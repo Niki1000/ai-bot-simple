@@ -592,6 +592,7 @@ async function openChat() {
     document.getElementById('matchesView').style.display = 'none';
     document.getElementById('chatView').style.display = 'flex';
     document.querySelector('.bottom-nav')?.classList.add('hidden');
+    document.querySelector('.container')?.classList.add('chat-active');
 
     document.getElementById('chatGirlName').textContent = selectedGirl.name;
     document.getElementById('chatGirlAvatar').style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
@@ -771,6 +772,7 @@ function backToSwipe() {
     document.getElementById('matchesView').style.display = 'flex';
     document.getElementById('userProfileView').style.display = 'none';
     document.querySelector('.bottom-nav')?.classList.remove('hidden');
+    document.querySelector('.container')?.classList.remove('chat-active');
 
     selectedGirl = null;
     sympathy = 0;
@@ -1418,6 +1420,7 @@ function showMatches() {
     document.getElementById('matchesView').style.display = 'flex';
     document.getElementById('userProfileView').style.display = 'none';
     document.querySelector('.bottom-nav')?.classList.remove('hidden');
+    document.querySelector('.container')?.classList.remove('chat-active');
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -1438,6 +1441,7 @@ function showSwipe() {
     document.getElementById('matchesView').style.display = 'none';
     document.getElementById('userProfileView').style.display = 'none';
     document.querySelector('.bottom-nav')?.classList.remove('hidden');
+    document.querySelector('.container')?.classList.remove('chat-active');
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -1702,6 +1706,7 @@ async function showUserProfile() {
     document.getElementById('matchesView').style.display = 'none';
     document.getElementById('userProfileView').style.display = 'flex';
     document.querySelector('.bottom-nav')?.classList.remove('hidden');
+    document.querySelector('.container')?.classList.remove('chat-active');
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -2236,6 +2241,46 @@ function closeCharacterProfile() {
     document.getElementById('characterProfileView').style.display = 'none';
 }
 
+// Open "Все медиа чата" gallery (all photos, locked/unlocked)
+function openChatMediaGallery() {
+    if (!selectedGirl) return;
+    const grid = document.getElementById('chatMediaGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const unlockedForChar = userEntitlements.unlockedPhotos?.[selectedGirl._id] || [];
+    const isPremium = userEntitlements.subscriptionLevel === 'premium';
+    const allPhotos = [selectedGirl.avatarUrl].concat(selectedGirl.photos || []);
+    allPhotos.forEach((url, index) => {
+        const isUnlocked = index === 0 || isPremium || unlockedForChar.includes(url);
+        const levelNum = index + 4;
+        const item = document.createElement('div');
+        item.className = 'chat-media-item' + (isUnlocked ? '' : ' locked');
+        item.style.backgroundImage = `url('${url}')`;
+        if (!isUnlocked) {
+            const levelSpan = document.createElement('span');
+            levelSpan.className = 'media-lock-level';
+            levelSpan.textContent = `Уровень ${levelNum}`;
+            item.appendChild(levelSpan);
+        }
+        item.onclick = function(e) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            if (isUnlocked) showPhoto(url, e);
+            else handleLockedPhoto(url, e);
+            return false;
+        };
+        item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); }, true);
+        grid.appendChild(item);
+    });
+    document.getElementById('characterProfileView').style.display = 'none';
+    document.getElementById('chatMediaView').style.display = 'flex';
+}
+
+// Close chat media gallery, back to character profile
+function closeChatMediaGallery() {
+    document.getElementById('chatMediaView').style.display = 'none';
+    document.getElementById('characterProfileView').style.display = 'flex';
+}
+
 // Clear chat with current character
 async function clearChatWithCharacter() {
     if (!selectedGirl) return;
@@ -2409,6 +2454,8 @@ window.showSupport = showSupport;
 window.closeCharacterProfile = closeCharacterProfile;
 window.openCharacterProfile = openCharacterProfile;
 window.clearChatWithCharacter = clearChatWithCharacter;
+window.openChatMediaGallery = openChatMediaGallery;
+window.closeChatMediaGallery = closeChatMediaGallery;
 
 // Start app
 document.addEventListener('DOMContentLoaded', initApp);

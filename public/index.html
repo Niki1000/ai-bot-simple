@@ -1653,6 +1653,98 @@
             display: none !important;
         }
 
+        /* Chat full screen when nav hidden - no empty space */
+        .container.chat-active .chat-view {
+            height: 100%;
+        }
+
+        /* Chat Media Gallery - "Все медиа чата" full-screen view */
+        .chat-media-view {
+            display: none;
+            flex-direction: column;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 250;
+            background: #0f0f1e;
+        }
+
+        .chat-media-view .media-gallery-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chat-media-view .media-gallery-header .back-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .chat-media-view .media-gallery-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .chat-media-grid-wrap {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .chat-media-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .chat-media-item {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            background-size: cover;
+            background-position: center;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-media-item.locked {
+            filter: blur(6px) brightness(0.5);
+        }
+
+        .chat-media-item.locked::after {
+            content: '\f023';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 28px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .chat-media-item .media-lock-level {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            z-index: 2;
+        }
+
         .profile-actions {
             padding: 20px;
             padding-bottom: max(30px, env(safe-area-inset-bottom));
@@ -2512,7 +2604,7 @@
 
             <!-- Photo in chat section (like screenshot) -->
             <div class="profile-photo-in-chat">
-                <div class="photo-in-chat-header">
+                <div class="photo-in-chat-header" onclick="openChatMediaGallery()" role="button" tabindex="0" style="cursor: pointer;">
                     <span class="sub-badge">SUB</span>
                     <span class="photo-in-chat-title">Фото в чате</span>
                     <i class="fas fa-chevron-right photo-in-chat-arrow"></i>
@@ -2543,6 +2635,21 @@
                 <button class="btn-message" onclick="closeCharacterProfile()">
                     <i class="fas fa-comment"></i> Написать сообщение
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Media Gallery - "Все медиа чата" -->
+    <div id="chatMediaView" class="chat-media-view">
+        <div class="media-gallery-header">
+            <button class="back-btn" onclick="closeChatMediaGallery()" type="button">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2 class="media-gallery-title">Все медиа чата</h2>
+        </div>
+        <div class="chat-media-grid-wrap">
+            <div class="chat-media-grid" id="chatMediaGrid">
+                <!-- Filled by JS -->
             </div>
         </div>
     </div>
