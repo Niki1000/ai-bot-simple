@@ -133,13 +133,28 @@
             /* Fix flex overflow */
         }
 
+        /* App name above swipe cards */
+        .swipe-app-title {
+            position: absolute;
+            top: 10px;
+            top: max(10px, env(safe-area-inset-top));
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            font-size: clamp(16px, 4vw, 18px);
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+            pointer-events: none;
+        }
+
         .swipe-container {
             flex: 1;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 14px 12px 170px 12px;
+            padding: 52px 12px 170px 12px;
         }
 
         /* Profile Card - Bigger & More Attractive */
@@ -2518,6 +2533,7 @@
     <div class="container">
         <!-- Main Content -->
         <div class="main-content">
+            <div class="swipe-app-title">VirtualCrush</div>
             <div id="swipeView" class="swipe-container">
                 <div class="loading" id="loading">
                     <i class="fas fa-spinner fa-spin"></i><br><br>
@@ -2548,8 +2564,8 @@
         <!-- Bottom Navigation -->
         <div class="bottom-nav">
             <a href="#" class="nav-item active" onclick="event.preventDefault(); showSwipe();">
-                <i class="fas fa-fire"></i>
-                <span>Обзор</span>
+                <i class="fas fa-search"></i>
+                <span>Поиск</span>
             </a>
             <a href="#" class="nav-item" onclick="event.preventDefault(); showMatches();">
                 <i class="fas fa-comments"></i>
