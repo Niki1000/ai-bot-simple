@@ -1731,13 +1731,14 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            padding: 18px;
+            padding: 18px 16px 20px;
             height: 160px;
             min-width: 0;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
             box-sizing: border-box;
+            overflow: hidden;
         }
 
         .limits-title {
@@ -1746,19 +1747,23 @@
             color: rgba(255, 255, 255, 0.9);
             margin-bottom: 14px;
             margin-top: 0;
+            flex-shrink: 0;
         }
 
         .limits-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
             flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .limit-item {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex-shrink: 0;
         }
 
         .limit-value {
@@ -2399,12 +2404,8 @@
                     <h3 class="limits-title">На сегодня осталось:</h3>
                     <div class="limits-list">
                         <div class="limit-item">
-                            <span class="limit-value" id="dailyCustomLimit">0</span>
-                            <span class="limit-label">кастомных</span>
-                        </div>
-                        <div class="limit-item">
                             <span class="limit-value" id="dailyGalleryLimit">2</span>
-                            <span class="limit-label">галерея</span>
+                            <span class="limit-label">фото</span>
                         </div>
                         <div class="limit-item">
                             <span class="limit-value" id="dailyMessagesLimit">50</span>

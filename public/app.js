@@ -1784,13 +1784,9 @@ async function showUserProfile() {
             }
             
             // Update daily limits display
-            const dailyCustomLimitEl = document.getElementById('dailyCustomLimit');
             const dailyGalleryLimitEl = document.getElementById('dailyGalleryLimit');
             const dailyMessagesLimitEl = document.getElementById('dailyMessagesLimit');
             
-            if (dailyCustomLimitEl) {
-                dailyCustomLimitEl.textContent = '0'; // Custom photos (future feature)
-            }
             if (dailyGalleryLimitEl) {
                 dailyGalleryLimitEl.textContent = subLevel === 'premium' ? '∞' : '2';
             }
