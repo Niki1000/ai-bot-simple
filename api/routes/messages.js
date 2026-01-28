@@ -97,4 +97,28 @@ router.get('/chat-history/:telegramId/:characterId', async (req, res) => {
   }
 });
 
+// POST clear chat with a character
+router.post('/clear-chat', async (req, res) => {
+  try {
+    await connectDB();
+    const { telegramId, characterId } = req.body;
+    if (!telegramId || !characterId) {
+      return res.status(400).json({ success: false, error: 'telegramId and characterId required' });
+    }
+    const user = await User.findOne({ telegramId: parseInt(telegramId) });
+    if (!user) {
+      return res.json({ success: true });
+    }
+    if (!user.chatHistory) user.chatHistory = {};
+    user.chatHistory[characterId] = [];
+    user.markModified('chatHistory');
+    await user.save();
+    console.log(`🗑 Cleared chat for user ${telegramId} with character ${characterId}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('❌ Clear chat error:', e);
+    res.json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

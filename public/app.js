@@ -591,6 +591,7 @@ async function openChat() {
     document.getElementById('actionButtons').style.display = 'none';
     document.getElementById('matchesView').style.display = 'none';
     document.getElementById('chatView').style.display = 'flex';
+    document.querySelector('.bottom-nav')?.classList.add('hidden');
 
     document.getElementById('chatGirlName').textContent = selectedGirl.name;
     document.getElementById('chatGirlAvatar').style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
@@ -769,6 +770,7 @@ function backToSwipe() {
     document.getElementById('actionButtons').style.display = 'none';
     document.getElementById('matchesView').style.display = 'flex';
     document.getElementById('userProfileView').style.display = 'none';
+    document.querySelector('.bottom-nav')?.classList.remove('hidden');
 
     selectedGirl = null;
     sympathy = 0;
@@ -1415,6 +1417,7 @@ function showMatches() {
     document.getElementById('chatView').style.display = 'none';
     document.getElementById('matchesView').style.display = 'flex';
     document.getElementById('userProfileView').style.display = 'none';
+    document.querySelector('.bottom-nav')?.classList.remove('hidden');
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -1434,6 +1437,7 @@ function showSwipe() {
     document.getElementById('chatView').style.display = 'none';
     document.getElementById('matchesView').style.display = 'none';
     document.getElementById('userProfileView').style.display = 'none';
+    document.querySelector('.bottom-nav')?.classList.remove('hidden');
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -1697,6 +1701,7 @@ async function showUserProfile() {
     document.getElementById('chatView').style.display = 'none';
     document.getElementById('matchesView').style.display = 'none';
     document.getElementById('userProfileView').style.display = 'flex';
+    document.querySelector('.bottom-nav')?.classList.remove('hidden');
 
     // Update nav
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -2174,134 +2179,53 @@ async function openCharacterProfile() {
     const mainPhoto = document.getElementById('profileMainPhoto');
     mainPhoto.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
     
-    // Populate gallery with unlock status
+    // Populate gallery: exactly 3 tiles (screenshot style) - first unlocked, 2nd/3rd locked with Уровень 4/5
     const galleryContainer = document.getElementById('profileGallery');
     galleryContainer.innerHTML = '';
     
-    // Get unlocked photos for this character
     const unlockedForChar = userEntitlements.unlockedPhotos?.[selectedGirl._id] || [];
     const isPremium = userEntitlements.subscriptionLevel === 'premium';
+    const photos = selectedGirl.photos && selectedGirl.photos.length > 0
+        ? selectedGirl.photos
+        : [selectedGirl.avatarUrl];
+    const src1 = photos[0] || selectedGirl.avatarUrl;
+    const src2 = photos[1] || photos[0] || selectedGirl.avatarUrl;
+    const src3 = photos[2] || photos[0] || selectedGirl.avatarUrl;
     
-    // Add avatar as first photo (always unlocked)
-    const avatarItem = document.createElement('div');
-    avatarItem.className = 'gallery-item';
-    avatarItem.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
-    // Use both onclick and addEventListener for maximum compatibility
-    avatarItem.onclick = function(e) {
-        console.log('📸 Avatar clicked (onclick)');
-        if (e) {
-            e.stopPropagation();
-            e.preventDefault();
+    function addGalleryItem(url, isUnlocked, levelLabel, clickHandler) {
+        const item = document.createElement('div');
+        item.className = 'gallery-item' + (isUnlocked ? '' : ' locked');
+        item.style.backgroundImage = `url('${url}')`;
+        if (levelLabel) {
+            const levelSpan = document.createElement('span');
+            levelSpan.className = 'gallery-lock-level';
+            levelSpan.textContent = levelLabel;
+            item.appendChild(levelSpan);
         }
-        showPhoto(selectedGirl.avatarUrl, e);
-        return false;
-    };
-    
-    // Also use addEventListener as backup
-    avatarItem.addEventListener('click', function(e) {
-        console.log('📸 Avatar clicked (addEventListener)');
-        e.stopPropagation();
-        e.preventDefault();
-        showPhoto(selectedGirl.avatarUrl, e);
-    }, true); // Use capture phase
-    
-    // Also add touch event for mobile
-    avatarItem.addEventListener('touchend', function(e) {
-        console.log('📸 Avatar touched');
-        e.stopPropagation();
-        e.preventDefault();
-        showPhoto(selectedGirl.avatarUrl, e);
-    }, true);
-    galleryContainer.appendChild(avatarItem);
-    
-    // Add other photos from character
-    if (selectedGirl.photos && selectedGirl.photos.length > 0) {
-        selectedGirl.photos.forEach((photoUrl, index) => {
-            const item = document.createElement('div');
-            item.className = 'gallery-item';
-            // Use data attribute for lazy loading
-            item.setAttribute('data-bg-image', photoUrl);
-            // Only load first 3 images immediately, rest lazy load
-            if (index < 3) {
-                item.style.backgroundImage = `url('${photoUrl}')`;
-            } else {
-                // Lazy load using IntersectionObserver
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const elem = entry.target;
-                            elem.style.backgroundImage = `url('${elem.getAttribute('data-bg-image')}')`;
-                            elem.removeAttribute('data-bg-image');
-                            observer.unobserve(elem);
-                        }
-                    });
-                }, { rootMargin: '50px' });
-                observer.observe(item);
-            }
-            
-            // First photo always free, others check unlock status
-            const isUnlocked = index === 0 || isPremium || unlockedForChar.includes(photoUrl);
-            
-            if (isUnlocked) {
-                // Use both onclick and addEventListener for maximum compatibility
-                item.onclick = function(e) {
-                    console.log('📸 Photo clicked (onclick):', photoUrl);
-                    if (e) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                    }
-                    showPhoto(photoUrl, e);
-                    return false;
-                };
-                
-                // Also use addEventListener as backup
-                item.addEventListener('click', function(e) {
-                    console.log('📸 Photo clicked (addEventListener):', photoUrl);
-                    e.stopPropagation();
-                    e.preventDefault();
-                    showPhoto(photoUrl, e);
-                }, true); // Use capture phase
-                
-                // Also add touch event for mobile
-                item.addEventListener('touchend', function(e) {
-                    console.log('📸 Photo touched:', photoUrl);
-                    e.stopPropagation();
-                    e.preventDefault();
-                    showPhoto(photoUrl, e);
-                }, true);
-            } else {
-                item.classList.add('locked');
-                // Use both onclick and addEventListener for maximum compatibility
-                item.onclick = function(e) {
-                    console.log('📸 Locked photo clicked (onclick):', photoUrl);
-                    if (e) {
-                        e.stopPropagation();
-                        e.preventDefault();
-                    }
-                    handleLockedPhoto(photoUrl, e);
-                    return false;
-                };
-                
-                // Also use addEventListener as backup
-                item.addEventListener('click', function(e) {
-                    console.log('📸 Locked photo clicked (addEventListener):', photoUrl);
-                    e.stopPropagation();
-                    e.preventDefault();
-                    handleLockedPhoto(photoUrl, e);
-                }, true); // Use capture phase
-                
-                // Also add touch event for mobile
-                item.addEventListener('touchend', function(e) {
-                    console.log('📸 Locked photo touched:', photoUrl);
-                    e.stopPropagation();
-                    e.preventDefault();
-                    handleLockedPhoto(photoUrl, e);
-                }, true);
-            }
-            
-            galleryContainer.appendChild(item);
-        });
+        item.onclick = function(e) {
+            if (e) { e.stopPropagation(); e.preventDefault(); }
+            clickHandler(url, e);
+            return false;
+        };
+        item.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); clickHandler(url, e); }, true);
+        item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); clickHandler(url, e); }, true);
+        galleryContainer.appendChild(item);
     }
+    
+    // Tile 1: always visible
+    addGalleryItem(src1, true, null, (url, e) => showPhoto(url, e));
+    // Tile 2: locked Уровень 4
+    const unlocked2 = isPremium || unlockedForChar.includes(src2);
+    addGalleryItem(src2, unlocked2, unlocked2 ? null : 'Уровень 4', (url, e) => {
+        if (unlocked2) showPhoto(url, e);
+        else handleLockedPhoto(url, e);
+    });
+    // Tile 3: locked Уровень 5
+    const unlocked3 = isPremium || unlockedForChar.includes(src3);
+    addGalleryItem(src3, unlocked3, unlocked3 ? null : 'Уровень 5', (url, e) => {
+        if (unlocked3) showPhoto(url, e);
+        else handleLockedPhoto(url, e);
+    });
     
     // Show profile view
     document.getElementById('characterProfileView').style.display = 'flex';
@@ -2310,6 +2234,35 @@ async function openCharacterProfile() {
 // Close character profile view
 function closeCharacterProfile() {
     document.getElementById('characterProfileView').style.display = 'none';
+}
+
+// Clear chat with current character
+async function clearChatWithCharacter() {
+    if (!selectedGirl) return;
+    const msg = 'Очистить всю переписку с этой девушкой? Это действие нельзя отменить.';
+    const confirmed = window.Telegram?.WebApp
+        ? await new Promise((resolve) => { tg.showConfirm(msg, resolve); })
+        : confirm(msg);
+    if (!confirmed) return;
+    try {
+        const res = await apiFetch('/api/webapp/clear-chat', {
+            method: 'POST',
+            body: JSON.stringify({ telegramId: userId, characterId: selectedGirl._id })
+        });
+        const data = await safeJsonParse(res);
+        if (data.success) {
+            document.getElementById('chatMessages').innerHTML = '';
+            closeCharacterProfile();
+            const okMsg = 'Чат очищен.';
+            if (window.Telegram?.WebApp) tg.showAlert(okMsg);
+            else alert(okMsg);
+        } else {
+            showError(data.error || 'Не удалось очистить чат');
+        }
+    } catch (e) {
+        console.error('Clear chat error:', e);
+        showError('Ошибка при очистке чата');
+    }
 }
 
 // Handle locked photo click
@@ -2455,6 +2408,7 @@ window.showSettings = showSettings;
 window.showSupport = showSupport;
 window.closeCharacterProfile = closeCharacterProfile;
 window.openCharacterProfile = openCharacterProfile;
+window.clearChatWithCharacter = clearChatWithCharacter;
 
 // Start app
 document.addEventListener('DOMContentLoaded', initApp);
