@@ -1811,15 +1811,9 @@ async function showUserProfile() {
         if (userData.success && userData.user) {
             const user = userData.user;
             
-            // Get Telegram user info and profile picture
-            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-                const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-                const name = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : '');
-                document.getElementById('userProfileName').textContent = name || 'Пользователь';
-            }
-            
-            // Set profile picture using helper function
+            // Set profile picture and display name/bio (from edit profile or Telegram)
             setTelegramProfilePicture('userProfileAvatar');
+            applyProfileToDisplay();
             
             // Stats
             const matchesCount = user.likes?.length || 0;
@@ -2359,23 +2353,111 @@ async function getTestCredits() {
     }
 }
 
-// Show settings (placeholder)
-function showSettings() {
-    const message = '⚙️ Настройки\n\nЭтот раздел находится в разработке.';
-    if (window.Telegram?.WebApp) {
-        tg.showAlert(message);
-    } else {
-        alert(message);
+// Profile display name and bio (localStorage, keyed by userId)
+function getProfileStorageKey() {
+    return 'profile_' + (userId || 'default');
+}
+
+function getProfileDisplayName() {
+    try {
+        const key = getProfileStorageKey();
+        const raw = localStorage.getItem(key);
+        if (raw) {
+            const data = JSON.parse(raw);
+            if (data && typeof data.displayName === 'string' && data.displayName.trim()) {
+                return data.displayName.trim();
+            }
+        }
+    } catch (e) {
+        console.warn('getProfileDisplayName:', e);
     }
+    return null;
+}
+
+function getProfileBio() {
+    try {
+        const key = getProfileStorageKey();
+        const raw = localStorage.getItem(key);
+        if (raw) {
+            const data = JSON.parse(raw);
+            if (data && typeof data.bio === 'string') {
+                return data.bio.trim();
+            }
+        }
+    } catch (e) {
+        console.warn('getProfileBio:', e);
+    }
+    return null;
+}
+
+function applyProfileToDisplay() {
+    const nameEl = document.getElementById('userProfileName');
+    const bioEl = document.getElementById('userProfileBio');
+    const displayName = getProfileDisplayName();
+    const bio = getProfileBio();
+    if (nameEl) {
+        nameEl.textContent = displayName || (window.Telegram?.WebApp?.initDataUnsafe?.user
+            ? (window.Telegram.WebApp.initDataUnsafe.user.first_name + (window.Telegram.WebApp.initDataUnsafe.user.last_name ? ' ' + window.Telegram.WebApp.initDataUnsafe.user.last_name : '')).trim() || 'Пользователь'
+            : 'Пользователь');
+    }
+    if (bioEl) {
+        bioEl.textContent = bio || '';
+        bioEl.style.display = (bio && bio.length > 0) ? 'block' : 'none';
+    }
+}
+
+// Show edit profile modal (from settings gear)
+function showSettings() {
+    const overlay = document.getElementById('editProfileOverlay');
+    const nameInput = document.getElementById('editProfileName');
+    const bioInput = document.getElementById('editProfileBio');
+    if (!overlay || !nameInput || !bioInput) return;
+    const displayName = getProfileDisplayName();
+    const bio = getProfileBio();
+    const telegramName = window.Telegram?.WebApp?.initDataUnsafe?.user
+        ? (window.Telegram.WebApp.initDataUnsafe.user.first_name + (window.Telegram.WebApp.initDataUnsafe.user.last_name ? ' ' + window.Telegram.WebApp.initDataUnsafe.user.last_name : '')).trim()
+        : '';
+    nameInput.value = displayName || telegramName || '';
+    bioInput.value = bio || '';
+    overlay.classList.add('show');
+}
+
+function closeEditProfile(event) {
+    if (event && event.target !== document.getElementById('editProfileOverlay')) return;
+    const overlay = document.getElementById('editProfileOverlay');
+    if (overlay) overlay.classList.remove('show');
+}
+
+function saveProfileEdits() {
+    const nameInput = document.getElementById('editProfileName');
+    const bioInput = document.getElementById('editProfileBio');
+    const overlay = document.getElementById('editProfileOverlay');
+    if (!nameInput || !bioInput || !overlay) return;
+    const displayName = (nameInput.value || '').trim();
+    const bio = (bioInput.value || '').trim();
+    try {
+        const key = getProfileStorageKey();
+        localStorage.setItem(key, JSON.stringify({ displayName: displayName || '', bio: bio || '' }));
+    } catch (e) {
+        console.error('saveProfileEdits:', e);
+        if (window.Telegram?.WebApp) tg.showAlert('Не удалось сохранить.');
+        else alert('Не удалось сохранить.');
+        return;
+    }
+    applyProfileToDisplay();
+    overlay.classList.remove('show');
+    if (window.Telegram?.WebApp) tg.showAlert('Профиль сохранён');
+    else alert('Профиль сохранён');
 }
 
 // Show support
 function showSupport() {
-    const message = '💬 Поддержка\n\nЕсли у тебя есть вопросы или проблемы, напиши нам:\n\n@your_support_bot\n\nМы всегда готовы помочь! 💕';
+    const supportUsername = 'crazyL33t';
+    const supportUrl = 'https://t.me/' + supportUsername;
     if (window.Telegram?.WebApp) {
-        tg.showAlert(message);
+        window.Telegram.WebApp.openLink(supportUrl);
     } else {
-        alert(message);
+        window.open(supportUrl, '_blank');
     }
 }
 
@@ -2731,6 +2813,8 @@ window.openPaymentModal = openPaymentModal;
 window.closePaymentModal = closePaymentModal;
 window.submitPayment = submitPayment;
 window.applyPromo = applyPromo;
+window.closeEditProfile = closeEditProfile;
+window.saveProfileEdits = saveProfileEdits;
 
 // Start app
 document.addEventListener('DOMContentLoaded', initApp);

@@ -1978,6 +1978,119 @@
             margin-bottom: 5px;
         }
 
+        .user-profile-bio {
+            font-size: 15px;
+            color: rgba(255, 255, 255, 0.75);
+            line-height: 1.5;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+
+        .user-profile-bio:empty {
+            display: none;
+        }
+
+        /* Edit Profile Modal */
+        .edit-profile-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10002;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .edit-profile-overlay.show {
+            display: flex;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .edit-profile-sheet {
+            width: 100%;
+            max-width: 500px;
+            max-height: 85vh;
+            background: linear-gradient(180deg, #1a0b2e 0%, #16213e 100%);
+            border-radius: 24px 24px 0 0;
+            padding: 16px 20px 24px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        .edit-profile-sheet h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .edit-profile-field {
+            margin-bottom: 16px;
+        }
+
+        .edit-profile-field label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .edit-profile-field input,
+        .edit-profile-field textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            color: white;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .edit-profile-field input::placeholder,
+        .edit-profile-field textarea::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .edit-profile-field textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .edit-profile-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .edit-profile-actions button {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .edit-profile-actions .btn-save-profile {
+            background: linear-gradient(135deg, #f093fb 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .edit-profile-actions .btn-cancel-profile {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .edit-profile-actions button:active {
+            transform: scale(0.98);
+        }
+
         /* Daily Missions */
         .daily-missions-section {
             margin-top: 30px;
@@ -3192,6 +3305,7 @@
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="user-profile-name" id="userProfileName">Пользователь</div>
+                <div class="user-profile-bio" id="userProfileBio"></div>
             </div>
 
             <!-- Daily Limits & Subscription Cards (Side by Side) -->
@@ -3239,6 +3353,25 @@
                     <span class="nav-btn-text">Поддержка</span>
                     <i class="fas fa-chevron-right nav-btn-arrow"></i>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal (from Settings gear) -->
+    <div id="editProfileOverlay" class="edit-profile-overlay" onclick="closeEditProfile(event)">
+        <div class="edit-profile-sheet" onclick="event.stopPropagation()">
+            <h3>Редактировать профиль</h3>
+            <div class="edit-profile-field">
+                <label for="editProfileName">Имя</label>
+                <input type="text" id="editProfileName" placeholder="Ваше имя" maxlength="50">
+            </div>
+            <div class="edit-profile-field">
+                <label for="editProfileBio">О себе</label>
+                <textarea id="editProfileBio" placeholder="Расскажите о себе (необязательно)" maxlength="300" rows="4"></textarea>
+            </div>
+            <div class="edit-profile-actions">
+                <button type="button" class="btn-cancel-profile" onclick="closeEditProfile()">Отмена</button>
+                <button type="button" class="btn-save-profile" onclick="saveProfileEdits()">Сохранить</button>
             </div>
         </div>
     </div>
