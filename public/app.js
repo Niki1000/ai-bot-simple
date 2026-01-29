@@ -2545,7 +2545,6 @@ async function openCharacterProfile() {
     document.getElementById('profileName').textContent = selectedGirl.name;
     document.getElementById('profileAge').textContent = `${selectedGirl.age} лет`;
     document.getElementById('profileBio').textContent = selectedGirl.bio || 'Информация отсутствует';
-    document.getElementById('profilePersonality').textContent = selectedGirl.personality || 'Узнай меня лучше в чате! 💕';
     document.getElementById('profileSympathy').textContent = sympathy;
     
     // Fake compatibility based on sympathy (for now)
@@ -2578,7 +2577,14 @@ async function openCharacterProfile() {
     function addGalleryItem(url, isUnlocked, levelLabel, clickHandler) {
         const item = document.createElement('div');
         item.className = 'gallery-item' + (isUnlocked ? '' : ' locked');
-        item.style.backgroundImage = `url('${url}')`;
+        if (isUnlocked) {
+            item.style.backgroundImage = `url('${url}')`;
+        } else {
+            const blurLayer = document.createElement('div');
+            blurLayer.className = 'gallery-item-blur';
+            blurLayer.style.backgroundImage = `url('${url}')`;
+            item.appendChild(blurLayer);
+        }
         if (levelLabel) {
             const levelSpan = document.createElement('span');
             levelSpan.className = 'gallery-lock-level';
