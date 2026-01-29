@@ -1998,24 +1998,81 @@ async function openChatFromProfile(girl) {
 
 // ==================== SUBSCRIPTION PAGE ====================
 
+let subscriptionCarouselScrollListener = null;
+
+// Update which plan card is "current" based on scroll position (carousel)
+function updateSubscriptionCarouselHighlight() {
+    const row = document.getElementById('subscriptionPlansRow');
+    const dots = document.getElementById('subscriptionCarouselDots');
+    if (!row || !dots) return;
+    const cards = row.querySelectorAll('.plan-card');
+    if (cards.length === 0) return;
+    const scrollLeft = row.scrollLeft;
+    const rowWidth = row.offsetWidth;
+    let bestIndex = 0;
+    let bestCenter = Infinity;
+    cards.forEach((card, index) => {
+        const left = card.offsetLeft;
+        const width = card.offsetWidth;
+        const center = left + width / 2 - scrollLeft - rowWidth / 2;
+        if (Math.abs(center) < Math.abs(bestCenter)) {
+            bestCenter = center;
+            bestIndex = index;
+        }
+    });
+    cards.forEach((c, i) => c.classList.toggle('current', i === bestIndex));
+    dots.querySelectorAll('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === bestIndex));
+}
+
 // Show subscription page (from Profile -> Подписка)
 function showSubscriptionPage() {
     document.getElementById('userProfileView').style.display = 'none';
     document.getElementById('subscriptionView').style.display = 'flex';
-    document.querySelector('.bottom-nav')?.classList.remove('hidden');
+    document.querySelector('.bottom-nav')?.classList.add('hidden');
     document.querySelector('.container')?.classList.remove('chat-active');
 
     const currentLevel = (userEntitlements.subscriptionLevel || 'free').toLowerCase();
     const isPro = currentLevel === 'pro' || currentLevel === 'premium';
     const isGold = currentLevel === 'gold';
     const currentPlan = isGold ? 'gold' : (isPro ? 'pro' : 'free');
+    const planOrder = ['free', 'pro', 'gold'];
+    const currentIndex = planOrder.indexOf(currentPlan);
+    const safeIndex = currentIndex >= 0 ? currentIndex : 0;
 
-    document.querySelectorAll('.plan-card').forEach(card => {
-        card.classList.remove('current');
-        if (card.dataset.plan === currentPlan) {
-            card.classList.add('current');
+    // Build carousel dots
+    const dotsContainer = document.getElementById('subscriptionCarouselDots');
+    if (dotsContainer) {
+        dotsContainer.innerHTML = '';
+        for (let i = 0; i < 3; i++) {
+            const dot = document.createElement('span');
+            dot.className = 'carousel-dot' + (i === safeIndex ? ' active' : '');
+            dot.setAttribute('data-index', i);
+            dot.onclick = function () {
+                const row = document.getElementById('subscriptionPlansRow');
+                const card = row?.querySelectorAll('.plan-card')[i];
+                if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            };
+            dotsContainer.appendChild(dot);
         }
+    }
+
+    // Set initial highlight
+    document.querySelectorAll('.plan-card').forEach((card, i) => {
+        card.classList.toggle('current', i === safeIndex);
     });
+
+    // Scroll to current plan card and wire carousel
+    const row = document.getElementById('subscriptionPlansRow');
+    if (row) {
+        if (subscriptionCarouselScrollListener) row.removeEventListener('scroll', subscriptionCarouselScrollListener);
+        subscriptionCarouselScrollListener = function () { updateSubscriptionCarouselHighlight(); };
+        row.addEventListener('scroll', subscriptionCarouselScrollListener);
+        const card = row.querySelectorAll('.plan-card')[safeIndex];
+        if (card) card.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'center' });
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () { updateSubscriptionCarouselHighlight(); });
+        });
+    }
 
     // Pricing option selection
     document.querySelectorAll('#subscriptionPricingOptions .pricing-option').forEach(el => {
@@ -2035,6 +2092,12 @@ function showSubscriptionPage() {
 function closeSubscriptionPage() {
     document.getElementById('subscriptionView').style.display = 'none';
     document.getElementById('userProfileView').style.display = 'flex';
+    document.querySelector('.bottom-nav')?.classList.remove('hidden');
+    const row = document.getElementById('subscriptionPlansRow');
+    if (row && subscriptionCarouselScrollListener) {
+        row.removeEventListener('scroll', subscriptionCarouselScrollListener);
+        subscriptionCarouselScrollListener = null;
+    }
 }
 
 // Open payment modal (when "Разблокировать" is clicked)
