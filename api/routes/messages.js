@@ -6,6 +6,7 @@ const connectDB = require('../db');
 
 const MESSAGES_PER_LEVEL = 10;
 const MAX_LEVEL = 10;
+const PHOTO_REQUEST_PERCENT_PER_MESSAGE = 10; // +10% per user message, cap 100
 
 // POST save message
 router.post('/save-message', async (req, res) => {
@@ -73,6 +74,13 @@ router.post('/save-message', async (req, res) => {
       user.characterLevelProgress[characterId] = progress;
       user.markModified('characterLevel');
       user.markModified('characterLevelProgress');
+
+      // Photo request % (0–100): increases when user chats; resets when girl sends photo
+      if (!user.photoRequestPercent) user.photoRequestPercent = {};
+      let photoPercent = user.photoRequestPercent[characterId] != null ? user.photoRequestPercent[characterId] : 0;
+      photoPercent = Math.min(100, photoPercent + PHOTO_REQUEST_PERCENT_PER_MESSAGE);
+      user.photoRequestPercent[characterId] = photoPercent;
+      user.markModified('photoRequestPercent');
     }
     
     // CRITICAL: Mark chatHistory as modified so Mongoose saves nested changes
@@ -81,11 +89,13 @@ router.post('/save-message', async (req, res) => {
     await user.save();
     console.log(`✅ Message saved. History length: ${user.chatHistory[characterId].length}`);
     
+    const photoRequestPercent = user.photoRequestPercent?.[characterId] ?? 0;
     res.json({
       success: true,
       sympathy: user.sympathy[characterId] || 0,
       level: user.characterLevel?.[characterId] ?? 0,
-      levelProgress: user.characterLevelProgress?.[characterId] ?? 0
+      levelProgress: user.characterLevelProgress?.[characterId] ?? 0,
+      photoRequestPercent
     });
   } catch (e) {
     console.error('❌ Save message error:', e);
@@ -105,20 +115,21 @@ router.get('/chat-history/:telegramId/:characterId', async (req, res) => {
     
     if (!user) {
       console.log('❌ User not found');
-      return res.json({ success: true, history: [], sympathy: 0, level: 0, levelProgress: 0 });
+      return res.json({ success: true, history: [], sympathy: 0, level: 0, levelProgress: 0, photoRequestPercent: 0 });
     }
     
     const history = user.chatHistory?.[characterId] || [];
     const sympathy = user.sympathy?.[characterId] || 0;
     const level = user.characterLevel?.[characterId] ?? 0;
     const levelProgress = user.characterLevelProgress?.[characterId] ?? 0;
+    const photoRequestPercent = user.photoRequestPercent?.[characterId] ?? 0;
     
-    console.log(`✅ Found ${history.length} messages, sympathy: ${sympathy}, level: ${level}, progress: ${levelProgress}`);
+    console.log(`✅ Found ${history.length} messages, sympathy: ${sympathy}, level: ${level}, progress: ${levelProgress}, photo%: ${photoRequestPercent}`);
     
-    res.json({ success: true, history, sympathy, level, levelProgress });
+    res.json({ success: true, history, sympathy, level, levelProgress, photoRequestPercent });
   } catch (e) {
     console.error('❌ History error:', e);
-    res.json({ success: false, error: e.message, history: [], sympathy: 0, level: 0, levelProgress: 0 });
+    res.json({ success: false, error: e.message, history: [], sympathy: 0, level: 0, levelProgress: 0, photoRequestPercent: 0 });
   }
 });
 

@@ -10,6 +10,7 @@ let selectedGirl = null;
 let sympathy = 0;
 let characterLevel = 0;      // 0–10 for current girl
 let characterLevelProgress = 0; // 0–9 messages toward next level
+let photoRequestPercent = 0;   // 0–100 for current girl; shown on photo request button
 const MESSAGES_PER_LEVEL = 10;
 let lastReadMessages = {}; // Track last read message timestamp per character: { characterId: timestamp }
 let isChatLoading = false; // Prevent multiple simultaneous chat loads
@@ -662,8 +663,10 @@ async function openChat() {
         sympathy = historyData.sympathy || 0;
         characterLevel = historyData.level != null ? historyData.level : 0;
         characterLevelProgress = historyData.levelProgress != null ? historyData.levelProgress : 0;
+        photoRequestPercent = historyData.photoRequestPercent != null ? historyData.photoRequestPercent : 0;
         updateSympathyBar(); // This will also update mood
         updateLevelBar();
+        updatePhotoRequestButton();
 
         if (historyData.success && historyData.history && historyData.history.length > 0) {
             // Double-check we still have the right girl selected
@@ -997,8 +1000,10 @@ async function sendMessage() {
             if (saveUserData.sympathy !== undefined) sympathy = saveUserData.sympathy;
             if (saveUserData.level != null) characterLevel = saveUserData.level;
             if (saveUserData.levelProgress != null) characterLevelProgress = saveUserData.levelProgress;
+            if (saveUserData.photoRequestPercent != null) photoRequestPercent = saveUserData.photoRequestPercent;
             updateSympathyBar();
             updateLevelBar();
+            updatePhotoRequestButton();
         }
 
         // 2. Show typing indicator while waiting for AI response
@@ -1298,6 +1303,8 @@ async function requestPhoto() {
         const data = await safeJsonParse(response);
 
         if (data.success && data.photo) {
+            if (data.photoRequestPercent != null) photoRequestPercent = data.photoRequestPercent;
+            updatePhotoRequestButton();
             const photoMsg = 'Вот моё фото! 📸💕';
             try {
                 const saveRes = await apiFetch('/api/webapp/save-message', {
@@ -1326,6 +1333,8 @@ async function requestPhoto() {
             addMessage(photoMsg, 'bot', null, data.photo);
             showPhoto(data.photo, null);
         } else {
+            if (data.photoRequestPercent != null) photoRequestPercent = data.photoRequestPercent;
+            updatePhotoRequestButton();
             const message = data.message || 'Пока не готова делиться фото 🙈';
             showError(message, false);
             addMessage(message, 'bot');
@@ -1438,6 +1447,14 @@ function updateLevelBar() {
         const pct = characterLevel >= 10 ? 100 : (characterLevelProgress / MESSAGES_PER_LEVEL) * 100;
         barFillEl.style.width = `${pct}%`;
     }
+}
+
+// Update photo request button label with current % (0–100)
+function updatePhotoRequestButton() {
+    const el = document.getElementById('photoRequestButtonLabel');
+    if (!el) return;
+    const pct = photoRequestPercent != null && photoRequestPercent !== '' ? Number(photoRequestPercent) : 0;
+    el.textContent = 'Попросить фото' + (pct >= 0 ? ` ${Math.min(100, Math.max(0, pct))}%` : '');
 }
 
 // Calculate and display character mood based on level (sympathy bar removed)

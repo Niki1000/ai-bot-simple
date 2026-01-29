@@ -64,15 +64,34 @@ router.post('/request-photo', async (req, res) => {
       });
     }
     
+    // Photo request %: girl sends with (percent) chance; e.g. 30% = 30% chance to send
+    const percent = user.photoRequestPercent?.[characterId] ?? 0;
+    const roll = Math.random() * 100;
+    const sendsPhoto = roll < percent;
+    
+    if (!sendsPhoto) {
+      user.lastPhotoRequest = { ...(user.lastPhotoRequest || {}), [characterId]: new Date() };
+      user.markModified('lastPhotoRequest');
+      await user.save();
+      return res.json({
+        success: false,
+        message: 'Прости, я пока не готова скинуть фото',
+        photoRequestPercent: percent
+      });
+    }
+    
     const chosen = lockableAtLevel[Math.floor(Math.random() * lockableAtLevel.length)];
     const list = unlockedList.slice();
     if (!list.includes(chosen.url)) list.push(chosen.url);
     user.unlockedPhotos = { ...unlocked, [characterId]: list };
     user.lastPhotoRequest = { ...(user.lastPhotoRequest || {}), [characterId]: new Date() };
+    // Reset photo request % after sending
+    user.photoRequestPercent = { ...(user.photoRequestPercent || {}), [characterId]: 0 };
     user.markModified('unlockedPhotos');
     user.markModified('lastPhotoRequest');
+    user.markModified('photoRequestPercent');
     await user.save();
-    return res.json({ success: true, photo: chosen.url });
+    return res.json({ success: true, photo: chosen.url, photoRequestPercent: 0 });
   } catch (e) {
     console.error('❌ Request photo error:', e);
     res.json({ success: false, error: e.message });
