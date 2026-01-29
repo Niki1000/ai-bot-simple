@@ -4,6 +4,9 @@ const { User } = require('../models');
 const { calculateSympathyPoints } = require('../utils');
 const connectDB = require('../db');
 
+const MESSAGES_PER_LEVEL = 10;
+const MAX_LEVEL = 10;
+
 // POST save message
 router.post('/save-message', async (req, res) => {
   try {
@@ -43,25 +46,33 @@ router.post('/save-message', async (req, res) => {
       user.markModified('unlockedPhotos');
     }
 
-    // Update stats for user messages with improved sympathy calculation (skip sympathy for photo-request message)
+    // Update stats for user messages (skip for photo-request message)
     const isPhotoRequestMessage = (sender === 'user' && message && String(message).trim() === '📸 Запрос фото');
     if (sender === 'user' && !isPhotoRequestMessage) {
-      // Calculate sympathy points based on message length
+      // Sympathy (kept for future rude-message decrease)
       const sympathyPoints = calculateSympathyPoints(message);
-      
-      // Time-based weighting: this is a new message, so full weight
-      const timeMultiplier = 1.0; // New messages always get full weight
-      
-      // Calculate final sympathy points
-      const finalPoints = Math.round(sympathyPoints * timeMultiplier * 10) / 10; // Round to 1 decimal
-      
-      // Update sympathy
+      const finalPoints = Math.round(sympathyPoints * 10) / 10;
       user.sympathy[characterId] = (user.sympathy[characterId] || 0) + finalPoints;
       user.totalMessages = (user.totalMessages || 0) + 1;
       user.markModified('sympathy');
-      
-      const messageLength = message.trim().length;
-      console.log(`💕 Sympathy: +${finalPoints} (length: ${messageLength}, total: ${user.sympathy[characterId]})`);
+
+      // Level: each N messages = +1 level (0–10), progress bar toward next level
+      if (!user.characterLevel) user.characterLevel = {};
+      if (!user.characterLevelProgress) user.characterLevelProgress = {};
+      let level = user.characterLevel[characterId] != null ? user.characterLevel[characterId] : 0;
+      let progress = user.characterLevelProgress[characterId] != null ? user.characterLevelProgress[characterId] : 0;
+      progress += 1;
+      if (progress >= MESSAGES_PER_LEVEL && level < MAX_LEVEL) {
+        level += 1;
+        progress = 0;
+        console.log(`📈 Level up: char ${characterId} -> level ${level}`);
+      } else if (level >= MAX_LEVEL) {
+        progress = Math.min(progress, MESSAGES_PER_LEVEL - 1);
+      }
+      user.characterLevel[characterId] = level;
+      user.characterLevelProgress[characterId] = progress;
+      user.markModified('characterLevel');
+      user.markModified('characterLevelProgress');
     }
     
     // CRITICAL: Mark chatHistory as modified so Mongoose saves nested changes
@@ -70,7 +81,12 @@ router.post('/save-message', async (req, res) => {
     await user.save();
     console.log(`✅ Message saved. History length: ${user.chatHistory[characterId].length}`);
     
-    res.json({ success: true, sympathy: user.sympathy[characterId] || 0 });
+    res.json({
+      success: true,
+      sympathy: user.sympathy[characterId] || 0,
+      level: user.characterLevel?.[characterId] ?? 0,
+      levelProgress: user.characterLevelProgress?.[characterId] ?? 0
+    });
   } catch (e) {
     console.error('❌ Save message error:', e);
     res.json({ success: false, error: e.message });
@@ -89,18 +105,20 @@ router.get('/chat-history/:telegramId/:characterId', async (req, res) => {
     
     if (!user) {
       console.log('❌ User not found');
-      return res.json({ success: true, history: [], sympathy: 0 });
+      return res.json({ success: true, history: [], sympathy: 0, level: 0, levelProgress: 0 });
     }
     
     const history = user.chatHistory?.[characterId] || [];
     const sympathy = user.sympathy?.[characterId] || 0;
+    const level = user.characterLevel?.[characterId] ?? 0;
+    const levelProgress = user.characterLevelProgress?.[characterId] ?? 0;
     
-    console.log(`✅ Found ${history.length} messages, sympathy: ${sympathy}`);
+    console.log(`✅ Found ${history.length} messages, sympathy: ${sympathy}, level: ${level}, progress: ${levelProgress}`);
     
-    res.json({ success: true, history, sympathy });
+    res.json({ success: true, history, sympathy, level, levelProgress });
   } catch (e) {
     console.error('❌ History error:', e);
-    res.json({ success: false, error: e.message, history: [], sympathy: 0 });
+    res.json({ success: false, error: e.message, history: [], sympathy: 0, level: 0, levelProgress: 0 });
   }
 });
 

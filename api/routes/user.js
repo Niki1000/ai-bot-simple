@@ -49,7 +49,7 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
     await connectDB();
     const telegramId = parseInt(req.params.telegramId, 10);
     if (isNaN(telegramId)) {
-      return res.json({ success: true, subscriptionLevel: 'free', credits: 0, unlockedPhotos: {} });
+      return res.json({ success: true, subscriptionLevel: 'free', credits: 0, unlockedPhotos: {}, characterLevel: {}, characterLevelProgress: {} });
     }
     const user = await User.findOne({ telegramId });
     
@@ -58,7 +58,9 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
         success: true,
         subscriptionLevel: 'free',
         credits: 0,
-        unlockedPhotos: {}
+        unlockedPhotos: {},
+        characterLevel: {},
+        characterLevelProgress: {}
       });
     }
     
@@ -73,7 +75,9 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
       success: true,
       subscriptionLevel: user.subscriptionLevel || 'free',
       credits: user.credits || 0,
-      unlockedPhotos
+      unlockedPhotos,
+      characterLevel: user.characterLevel || {},
+      characterLevelProgress: user.characterLevelProgress || {}
     });
   } catch (e) {
     console.error('❌ Entitlements error:', e);

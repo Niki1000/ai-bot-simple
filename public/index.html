@@ -710,6 +710,41 @@
             transition: all 0.3s;
         }
 
+        .chat-header-level {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .level-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .level-heart {
+            font-size: 12px;
+            color: rgba(240, 147, 251, 0.95);
+        }
+
+        .level-bar-wrap {
+            width: 60px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .level-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 10px;
+            transition: width 0.4s ease;
+        }
+
         .mood-excited {
             color: #ff6b6b;
             text-shadow: 0 0 8px rgba(255, 107, 107, 0.6);
@@ -3129,6 +3164,13 @@
                         </div>
                         <small class="sympathy-text" id="sympathyText">Симпатия: 0</small>
                         <small class="mood-indicator" id="characterMood">😐 Нейтрально</small>
+                    </div>
+                </div>
+                <div class="chat-header-level" id="chatHeaderLevel">
+                    <span class="level-label">Ур <span id="chatLevelNumber">0</span></span>
+                    <i class="fas fa-heart level-heart"></i>
+                    <div class="level-bar-wrap">
+                        <div class="level-bar-fill" id="chatLevelBarFill"></div>
                     </div>
                 </div>
             </div>

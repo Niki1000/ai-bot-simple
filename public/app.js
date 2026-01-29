@@ -8,6 +8,9 @@ let girls = [];
 let currentGirlIndex = 0;
 let selectedGirl = null;
 let sympathy = 0;
+let characterLevel = 0;      // 0–10 for current girl
+let characterLevelProgress = 0; // 0–9 messages toward next level
+const MESSAGES_PER_LEVEL = 10;
 let lastReadMessages = {}; // Track last read message timestamp per character: { characterId: timestamp }
 let isChatLoading = false; // Prevent multiple simultaneous chat loads
 
@@ -644,7 +647,11 @@ async function openChat() {
             historyData = await safeJsonParse(historyRes);
         } catch (error) {
             console.error('❌ Error loading chat history:', error);
-            // Show welcome message even if history load fails
+            sympathy = 0;
+            characterLevel = 0;
+            characterLevelProgress = 0;
+            updateSympathyBar();
+            updateLevelBar();
             const welcomeMsg = selectedGirl.welcomeMessage || 'Привет! 💕';
             addMessage(welcomeMsg, 'bot');
             return;
@@ -653,7 +660,10 @@ async function openChat() {
         console.log('📜 Loaded history:', historyData);
 
         sympathy = historyData.sympathy || 0;
+        characterLevel = historyData.level != null ? historyData.level : 0;
+        characterLevelProgress = historyData.levelProgress != null ? historyData.levelProgress : 0;
         updateSympathyBar(); // This will also update mood
+        updateLevelBar();
 
         if (historyData.success && historyData.history && historyData.history.length > 0) {
             // Double-check we still have the right girl selected
@@ -961,9 +971,12 @@ async function sendMessage() {
             saveUserData = { success: false };
         }
 
-        if (saveUserData.success && saveUserData.sympathy !== undefined) {
-            sympathy = saveUserData.sympathy;
-            updateSympathyBar(); // This will also update mood
+        if (saveUserData.success) {
+            if (saveUserData.sympathy !== undefined) sympathy = saveUserData.sympathy;
+            if (saveUserData.level != null) characterLevel = saveUserData.level;
+            if (saveUserData.levelProgress != null) characterLevelProgress = saveUserData.levelProgress;
+            updateSympathyBar();
+            updateLevelBar();
         }
 
         // 2. Show typing indicator while waiting for AI response
@@ -1235,15 +1248,6 @@ function removeTypingIndicator() {
 async function requestPhoto() {
     if (!selectedGirl) {return;}
 
-    if (sympathy < 10) {
-        if (window.Telegram?.WebApp) {
-            tg.showAlert(`Нужно больше симпатии! (${sympathy}/10)`);
-        } else {
-            alert(`Нужно больше симпатии! (${sympathy}/10)`);
-        }
-        return;
-    }
-
     const userPhotoRequestMsg = '📸 Запрос фото';
     addMessage(userPhotoRequestMsg, 'user');
     try {
@@ -1300,9 +1304,9 @@ async function requestPhoto() {
             addMessage(photoMsg, 'bot', null, data.photo);
             showPhoto(data.photo, null);
         } else {
-            const message = data.message || `Попробуй позже! Шанс: ${Math.floor(sympathy)}%`;
+            const message = data.message || 'Пока не готова делиться фото 🙈';
             showError(message, false);
-            addMessage(data.message || 'Пока не готова делиться фото 🙈', 'bot');
+            addMessage(message, 'bot');
         }
     } catch (error) {
         console.error('❌ Error requesting photo:', error);
@@ -1401,11 +1405,22 @@ function closePhotoModal(event) {
 // Update sympathy bar
 function updateSympathyBar() {
     const fillPercent = Math.min(100, sympathy);
-    document.getElementById('sympathyFill').style.width = `${fillPercent}%`;
-    document.getElementById('sympathyText').textContent = `Симпатия: ${sympathy}`;
-    
-    // Update mood indicator based on sympathy
+    const sympathyFill = document.getElementById('sympathyFill');
+    const sympathyText = document.getElementById('sympathyText');
+    if (sympathyFill) sympathyFill.style.width = `${fillPercent}%`;
+    if (sympathyText) sympathyText.textContent = `Симпатия: ${sympathy}`;
     updateMoodIndicator();
+}
+
+// Update level bar (right side of chat header): Ур X, heart, progress toward next level
+function updateLevelBar() {
+    const levelNumEl = document.getElementById('chatLevelNumber');
+    const barFillEl = document.getElementById('chatLevelBarFill');
+    if (levelNumEl) levelNumEl.textContent = characterLevel;
+    if (barFillEl) {
+        const pct = characterLevel >= 10 ? 100 : (characterLevelProgress / MESSAGES_PER_LEVEL) * 100;
+        barFillEl.style.width = `${pct}%`;
+    }
 }
 
 // Calculate and display character mood based on sympathy
@@ -2467,7 +2482,9 @@ function showSupport() {
 let userEntitlements = {
     subscriptionLevel: 'free',
     credits: 0,
-    unlockedPhotos: {}
+    unlockedPhotos: {},
+    characterLevel: {},
+    characterLevelProgress: {}
 };
 
 // Exact URL match only: a photo is unlocked only if its exact URL is in the list (so one sent photo doesn't unlock all)
@@ -2486,6 +2503,8 @@ async function loadEntitlements() {
             userEntitlements.subscriptionLevel = entData.subscriptionLevel || 'free';
             userEntitlements.credits = entData.credits ?? 0;
             userEntitlements.unlockedPhotos = entData.unlockedPhotos && typeof entData.unlockedPhotos === 'object' ? { ...entData.unlockedPhotos } : {};
+            userEntitlements.characterLevel = entData.characterLevel && typeof entData.characterLevel === 'object' ? { ...entData.characterLevel } : {};
+            userEntitlements.characterLevelProgress = entData.characterLevelProgress && typeof entData.characterLevelProgress === 'object' ? { ...entData.characterLevelProgress } : {};
             apiCache.entitlements = { ...userEntitlements };
             apiCache.entitlementsTimestamp = Date.now();
             console.log('🔑 Entitlements loaded (unlockedPhotos keys):', Object.keys(userEntitlements.unlockedPhotos || {}));
@@ -2520,22 +2539,24 @@ async function openCharacterProfile() {
     const mainPhoto = document.getElementById('profileMainPhoto');
     mainPhoto.style.backgroundImage = `url('${selectedGirl.avatarUrl}')`;
     
-    // Populate gallery: exactly 3 tiles (screenshot style) - first unlocked, 2nd/3rd locked with Уровень 4/5
+    // Populate gallery: 3 tiles; photos can be { url, requiredLevel }; show "Уровень N" when locked
     const galleryContainer = document.getElementById('profileGallery');
     galleryContainer.innerHTML = '';
     
     const charKey = String(selectedGirl._id);
     const unlockedForChar = userEntitlements.unlockedPhotos?.[charKey] || [];
     const isPremium = userEntitlements.subscriptionLevel === 'premium';
-    const photos = selectedGirl.photos && selectedGirl.photos.length > 0
-        ? selectedGirl.photos
-        : [selectedGirl.avatarUrl];
-    const src1 = photos[0] || selectedGirl.avatarUrl;
-    const src2 = photos[1] || photos[0] || selectedGirl.avatarUrl;
-    const src3 = photos[2] || photos[0] || selectedGirl.avatarUrl;
-    
-    const unlocked2 = isPremium || isPhotoUnlocked(src2, unlockedForChar);
-    const unlocked3 = isPremium || isPhotoUnlocked(src3, unlockedForChar);
+    const rawPhotos = selectedGirl.photos && selectedGirl.photos.length > 0 ? selectedGirl.photos : [];
+    function toPhotoEntry(p, i) {
+        const url = typeof p === 'string' ? p : (p && p.url);
+        const requiredLevel = typeof p === 'object' && p && typeof p.requiredLevel === 'number' ? p.requiredLevel : (i + 1);
+        return { url: url || selectedGirl.avatarUrl, requiredLevel };
+    }
+    const photosWithLevel = [];
+    for (let i = 0; i < 3; i++) {
+        const p = rawPhotos[i];
+        photosWithLevel.push(p ? toPhotoEntry(p, i) : { url: selectedGirl.avatarUrl, requiredLevel: i + 1 });
+    }
     
     function addGalleryItem(url, isUnlocked, levelLabel, clickHandler) {
         const item = document.createElement('div');
@@ -2561,12 +2582,12 @@ async function openCharacterProfile() {
         galleryContainer.appendChild(item);
     }
     
-    // Tile 1: always visible
-    addGalleryItem(src1, true, null, (url, e) => showPhoto(url, e));
-    // Tile 2: locked Уровень 4 — locked tiles do nothing on click
-    addGalleryItem(src2, unlocked2, unlocked2 ? null : 'Уровень 4', (url, e) => { if (unlocked2) showPhoto(url, e); });
-    // Tile 3: locked Уровень 5 — locked tiles do nothing on click
-    addGalleryItem(src3, unlocked3, unlocked3 ? null : 'Уровень 5', (url, e) => { if (unlocked3) showPhoto(url, e); });
+    for (let i = 0; i < 3; i++) {
+        const { url: u, requiredLevel: rL } = photosWithLevel[i] || { url: selectedGirl.avatarUrl, requiredLevel: 1 };
+        const unlocked = isPremium || isPhotoUnlocked(u, unlockedForChar);
+        const levelLabel = unlocked ? null : `Уровень ${rL}`;
+        addGalleryItem(u, unlocked, levelLabel, (url, e) => { if (unlocked) showPhoto(url, e); });
+    }
     
     // Show profile view
     document.getElementById('characterProfileView').style.display = 'flex';
@@ -2577,28 +2598,34 @@ function closeCharacterProfile() {
     document.getElementById('characterProfileView').style.display = 'none';
 }
 
-// Open "Все медиа чата" gallery (all photos, locked/unlocked)
+// Open "Все медиа чата" gallery (all photos, locked/unlocked; requiredLevel per photo)
 async function openChatMediaGallery() {
     if (!selectedGirl) return;
     const grid = document.getElementById('chatMediaGrid');
     if (!grid) return;
     grid.innerHTML = '';
-    // Always refresh entitlements when opening "Все медиа чата" so unlocked state is correct after reload
     await loadEntitlements();
     const charKey = String(selectedGirl._id);
     const unlockedForChar = userEntitlements.unlockedPhotos?.[charKey] || [];
     const isPremium = userEntitlements.subscriptionLevel === 'premium';
-    const allPhotos = [selectedGirl.avatarUrl].concat(selectedGirl.photos || []);
-    allPhotos.forEach((url, index) => {
+    const rawPhotos = selectedGirl.photos && selectedGirl.photos.length > 0 ? selectedGirl.photos : [];
+    function toEntry(p, i) {
+        const url = typeof p === 'string' ? p : (p && p.url);
+        const requiredLevel = typeof p === 'object' && p && typeof p.requiredLevel === 'number' ? p.requiredLevel : (i + 1);
+        return { url: url || selectedGirl.avatarUrl, requiredLevel };
+    }
+    const allPhotos = [{ url: selectedGirl.avatarUrl, requiredLevel: 0 }].concat(rawPhotos.map(toEntry));
+    allPhotos.forEach((entry, index) => {
+        const url = entry.url;
+        const requiredLevel = entry.requiredLevel;
         const isUnlocked = index === 0 || isPremium || isPhotoUnlocked(url, unlockedForChar);
-        const levelNum = index + 4;
         const item = document.createElement('div');
         item.className = 'chat-media-item' + (isUnlocked ? '' : ' locked');
         item.style.backgroundImage = `url('${url}')`;
         if (!isUnlocked) {
             const levelSpan = document.createElement('span');
             levelSpan.className = 'media-lock-level';
-            levelSpan.textContent = `Уровень ${levelNum}`;
+            levelSpan.textContent = `Уровень ${requiredLevel}`;
             item.appendChild(levelSpan);
         }
         if (isUnlocked) {
@@ -2609,12 +2636,7 @@ async function openChatMediaGallery() {
             };
             item.style.cursor = 'pointer';
         } else {
-            // Locked: no action on click/tap (unlock logic will change later)
-            item.onclick = function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                return false;
-            };
+            item.onclick = function(e) { e.stopPropagation(); e.preventDefault(); return false; };
             item.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); }, true);
             item.style.cursor = 'default';
             item.style.pointerEvents = 'auto';

@@ -3,7 +3,23 @@ const router = express.Router();
 const { User, Character } = require('../models');
 const connectDB = require('../db');
 
-// POST request photo
+// Normalize photo to { url, requiredLevel }; requiredLevel 1–4 if not set
+function normalizePhoto(photo, index) {
+  if (typeof photo === 'string') {
+    return { url: photo, requiredLevel: 1 + (index % 4) };
+  }
+  if (photo && typeof photo === 'object' && photo.url) {
+    return { url: photo.url, requiredLevel: typeof photo.requiredLevel === 'number' ? photo.requiredLevel : 1 + (index % 4) };
+  }
+  return null;
+}
+
+function getPhotosWithLevels(char) {
+  if (!char.photos || !Array.isArray(char.photos)) return [];
+  return char.photos.map((p, i) => normalizePhoto(p, i)).filter(Boolean);
+}
+
+// POST request photo – level-gated: only photos with requiredLevel <= user level can be unlocked
 router.post('/request-photo', async (req, res) => {
   try {
     await connectDB();
@@ -16,26 +32,29 @@ router.post('/request-photo', async (req, res) => {
       return res.json({ success: false, message: 'Не найдено' });
     }
     
-    const sympathy = user.sympathy?.[characterId] || 0;
-    const chance = Math.min(100, sympathy);
+    const level = user.characterLevel?.[characterId] ?? 0;
+    const photosWithLevels = getPhotosWithLevels(char);
+    const unlocked = user.unlockedPhotos || {};
+    const unlockedList = Array.isArray(unlocked[characterId]) ? unlocked[characterId] : [];
     
-    // Random chance based on sympathy
-    if (Math.random() * 100 < chance && char.photos && char.photos.length > 0) {
-      const randomPhoto = char.photos[Math.floor(Math.random() * char.photos.length)];
-      // Add to user's unlocked photos (replace whole object so Mongoose persists)
-      const prev = user.unlockedPhotos || {};
-      const list = Array.isArray(prev[characterId]) ? prev[characterId].slice() : [];
-      if (!list.includes(randomPhoto)) list.push(randomPhoto);
-      user.unlockedPhotos = { ...prev, [characterId]: list };
-      user.markModified('unlockedPhotos');
-      await user.save();
-      return res.json({ success: true, photo: randomPhoto });
+    const lockableAtLevel = photosWithLevels.filter(
+      p => p.requiredLevel <= level && !unlockedList.includes(p.url)
+    );
+    
+    if (lockableAtLevel.length === 0) {
+      return res.json({
+        success: false,
+        message: 'Новые фото откроются на следующем уровне'
+      });
     }
     
-    res.json({ 
-      success: false, 
-      message: `Попробуй позже! Шанс: ${Math.floor(chance)}%` 
-    });
+    const chosen = lockableAtLevel[Math.floor(Math.random() * lockableAtLevel.length)];
+    const list = unlockedList.slice();
+    if (!list.includes(chosen.url)) list.push(chosen.url);
+    user.unlockedPhotos = { ...unlocked, [characterId]: list };
+    user.markModified('unlockedPhotos');
+    await user.save();
+    return res.json({ success: true, photo: chosen.url });
   } catch (e) {
     console.error('❌ Request photo error:', e);
     res.json({ success: false, error: e.message });

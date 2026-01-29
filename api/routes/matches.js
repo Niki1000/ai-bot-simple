@@ -3,6 +3,24 @@ const router = express.Router();
 const { User, Character } = require('../models');
 const connectDB = require('../db');
 
+function normalizePhoto(photo, index) {
+  if (typeof photo === 'string') {
+    return { url: photo, requiredLevel: 1 + (index % 4) };
+  }
+  if (photo && typeof photo === 'object' && photo.url) {
+    return { url: photo.url, requiredLevel: typeof photo.requiredLevel === 'number' ? photo.requiredLevel : 1 + (index % 4) };
+  }
+  return null;
+}
+
+function normalizeCharacterPhotos(char) {
+  const c = char.toObject ? char.toObject() : { ...char };
+  if (c.photos && Array.isArray(c.photos)) {
+    c.photos = c.photos.map((p, i) => normalizePhoto(p, i)).filter(Boolean);
+  }
+  return c;
+}
+
 // POST match (like/pass)
 router.post('/match', async (req, res) => {
   try {
@@ -30,10 +48,11 @@ router.get('/matches/:telegramId', async (req, res) => {
     if (!user || !user.likes || user.likes.length === 0) {
       return res.json({ success: true, matches: [] });
     }
-    const matches = await Character.find({
+    const chars = await Character.find({
       _id: { $in: user.likes },
       isActive: true
     });
+    const matches = chars.map(c => normalizeCharacterPhotos(c));
     console.log(`✅ Found ${matches.length} matches`);
     res.json({ success: true, matches });
   } catch (e) {

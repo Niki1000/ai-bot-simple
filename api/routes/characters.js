@@ -3,6 +3,24 @@ const router = express.Router();
 const { User, Character } = require('../models');
 const connectDB = require('../db');
 
+function normalizePhoto(photo, index) {
+  if (typeof photo === 'string') {
+    return { url: photo, requiredLevel: 1 + (index % 4) };
+  }
+  if (photo && typeof photo === 'object' && photo.url) {
+    return { url: photo.url, requiredLevel: typeof photo.requiredLevel === 'number' ? photo.requiredLevel : 1 + (index % 4) };
+  }
+  return null;
+}
+
+function normalizeCharacterPhotos(char) {
+  const c = char.toObject ? char.toObject() : { ...char };
+  if (c.photos && Array.isArray(c.photos)) {
+    c.photos = c.photos.map((p, i) => normalizePhoto(p, i)).filter(Boolean);
+  }
+  return c;
+}
+
 // GET characters - filter out already liked characters with chat history
 router.get('/', async (req, res) => {
   try {
@@ -70,7 +88,8 @@ router.get('/', async (req, res) => {
       console.log(`✅ Returning ${chars.length} characters for swipe (ordered by preferences)`);
     }
     
-    res.json({ success: true, characters: chars });
+    const characters = chars.map(c => normalizeCharacterPhotos(c));
+    res.json({ success: true, characters });
   } catch (e) {
     console.error('❌ Characters error:', e);
     res.json({ success: false, error: e.message });
