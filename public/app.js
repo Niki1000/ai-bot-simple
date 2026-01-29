@@ -2584,9 +2584,6 @@ async function openCharacterProfile() {
             blurLayer.className = 'gallery-item-blur';
             blurLayer.style.backgroundImage = `url('${url}')`;
             item.appendChild(blurLayer);
-            // #region agent log
-            fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:addGalleryItem',message:'Added blur layer',data:{urlLen:(url||'').length,className:blurLayer.className},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-            // #endregion
         }
         if (levelLabel) {
             const levelSpan = document.createElement('span');
@@ -2612,21 +2609,8 @@ async function openCharacterProfile() {
         const { url: u, requiredLevel: rL } = photosWithLevel[i] || { url: selectedGirl.avatarUrl, requiredLevel: i === 0 ? 0 : 1 };
         const unlocked = isPremium || rL === 0 || isPhotoUnlocked(u, unlockedForChar);
         const levelLabel = unlocked ? null : `Уровень ${rL}`;
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:profileGallery',message:'Profile gallery tile',data:{i,url:(u||'').substring(0,60),requiredLevel:rL,unlocked,levelLabel,hasUnlockedForChar:unlockedForChar.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
         addGalleryItem(u, unlocked, levelLabel, (url, e) => { if (unlocked) showPhoto(url, e); });
     }
-    // #region agent log
-    setTimeout(function(){
-        const items = galleryContainer.querySelectorAll('.gallery-item.locked');
-        items.forEach(function(el, idx){
-            const blur = el.querySelector('.gallery-item-blur');
-            const rect = blur ? blur.getBoundingClientRect() : {};
-            fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:profileGalleryAfter',message:'Locked tile blur layer',data:{idx,hasBlur:!!blur,width:rect.width|0,height:rect.height|0},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1'})}).catch(()=>{});
-        });
-    }, 100);
-    // #endregion
     // Show profile view
     document.getElementById('characterProfileView').style.display = 'flex';
 }
