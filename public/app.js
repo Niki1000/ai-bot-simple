@@ -780,6 +780,28 @@ async function openChat() {
                 console.error('❌ Failed to save welcome message (non-critical):', saveErr);
                 // Don't show error - welcome message is already displayed
             }
+            
+            // Send level 0 photo after greetings (first image always unlocked)
+            const level0PhotoUrl = selectedGirl.avatarUrl || (selectedGirl.photos && selectedGirl.photos[0] ? (typeof selectedGirl.photos[0] === 'string' ? selectedGirl.photos[0] : selectedGirl.photos[0].url) : null);
+            if (level0PhotoUrl) {
+                const photoMsg = 'Вот моё фото! 📸💕';
+                addMessage(photoMsg, 'bot', null, level0PhotoUrl);
+                try {
+                    await apiFetch('/api/webapp/save-message', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            telegramId: userId,
+                            characterId: selectedGirl._id,
+                            message: photoMsg,
+                            sender: 'bot',
+                            photoUrl: level0PhotoUrl
+                        })
+                    }, 1);
+                    console.log('✅ Level 0 photo saved to DB');
+                } catch (photoErr) {
+                    console.error('❌ Failed to save level 0 photo (non-critical):', photoErr);
+                }
+            }
         }
 
         // Scroll to bottom (only if no history was loaded, as history loading handles its own scroll)
@@ -1402,13 +1424,8 @@ function closePhotoModal(event) {
     // Modal closed - no need to modify character profile
 }
 
-// Update sympathy bar
+// Update chat header (mood + level bar; sympathy bar removed)
 function updateSympathyBar() {
-    const fillPercent = Math.min(100, sympathy);
-    const sympathyFill = document.getElementById('sympathyFill');
-    const sympathyText = document.getElementById('sympathyText');
-    if (sympathyFill) sympathyFill.style.width = `${fillPercent}%`;
-    if (sympathyText) sympathyText.textContent = `Симпатия: ${sympathy}`;
     updateMoodIndicator();
 }
 
@@ -1423,7 +1440,7 @@ function updateLevelBar() {
     }
 }
 
-// Calculate and display character mood based on sympathy
+// Calculate and display character mood based on level (sympathy bar removed)
 function updateMoodIndicator() {
     if (!selectedGirl) {return;}
     
@@ -1434,30 +1451,30 @@ function updateMoodIndicator() {
     let moodText = '😐';
     let moodLabel = 'Нейтрально';
     
-    if (sympathy >= 80) {
+    if (characterLevel >= 8) {
         mood = 'excited';
         moodText = '😍';
         moodLabel = 'В восторге';
-    } else if (sympathy >= 60) {
+    } else if (characterLevel >= 6) {
         mood = 'happy';
         moodText = '😊';
         moodLabel = 'Рада';
-    } else if (sympathy >= 40) {
+    } else if (characterLevel >= 4) {
         mood = 'interested';
         moodText = '😌';
         moodLabel = 'Заинтересована';
-    } else if (sympathy >= 20) {
+    } else if (characterLevel >= 2) {
         mood = 'neutral';
         moodText = '😐';
         moodLabel = 'Нейтрально';
-    } else if (sympathy >= 10) {
+    } else if (characterLevel >= 1) {
         mood = 'shy';
         moodText = '🙂';
         moodLabel = 'Стесняется';
     } else {
-        mood = 'cold';
-        moodText = '😶';
-        moodLabel = 'Холодно';
+        mood = 'shy';
+        moodText = '😊';
+        moodLabel = 'Стесняется';
     }
     
     moodElement.textContent = `${moodText} ${moodLabel}`;
@@ -2549,13 +2566,13 @@ async function openCharacterProfile() {
     const rawPhotos = selectedGirl.photos && selectedGirl.photos.length > 0 ? selectedGirl.photos : [];
     function toPhotoEntry(p, i) {
         const url = typeof p === 'string' ? p : (p && p.url);
-        const requiredLevel = typeof p === 'object' && p && typeof p.requiredLevel === 'number' ? p.requiredLevel : (i + 1);
+        const requiredLevel = typeof p === 'object' && p && typeof p.requiredLevel === 'number' ? p.requiredLevel : (i === 0 ? 0 : i + 1);
         return { url: url || selectedGirl.avatarUrl, requiredLevel };
     }
     const photosWithLevel = [];
     for (let i = 0; i < 3; i++) {
         const p = rawPhotos[i];
-        photosWithLevel.push(p ? toPhotoEntry(p, i) : { url: selectedGirl.avatarUrl, requiredLevel: i + 1 });
+        photosWithLevel.push(p ? toPhotoEntry(p, i) : { url: selectedGirl.avatarUrl, requiredLevel: i === 0 ? 0 : i + 1 });
     }
     
     function addGalleryItem(url, isUnlocked, levelLabel, clickHandler) {
@@ -2583,8 +2600,8 @@ async function openCharacterProfile() {
     }
     
     for (let i = 0; i < 3; i++) {
-        const { url: u, requiredLevel: rL } = photosWithLevel[i] || { url: selectedGirl.avatarUrl, requiredLevel: 1 };
-        const unlocked = isPremium || isPhotoUnlocked(u, unlockedForChar);
+        const { url: u, requiredLevel: rL } = photosWithLevel[i] || { url: selectedGirl.avatarUrl, requiredLevel: i === 0 ? 0 : 1 };
+        const unlocked = isPremium || rL === 0 || isPhotoUnlocked(u, unlockedForChar);
         const levelLabel = unlocked ? null : `Уровень ${rL}`;
         addGalleryItem(u, unlocked, levelLabel, (url, e) => { if (unlocked) showPhoto(url, e); });
     }
@@ -2621,7 +2638,14 @@ async function openChatMediaGallery() {
         const isUnlocked = index === 0 || isPremium || isPhotoUnlocked(url, unlockedForChar);
         const item = document.createElement('div');
         item.className = 'chat-media-item' + (isUnlocked ? '' : ' locked');
-        item.style.backgroundImage = `url('${url}')`;
+        if (isUnlocked) {
+            item.style.backgroundImage = `url('${url}')`;
+        } else {
+            const blurLayer = document.createElement('div');
+            blurLayer.className = 'chat-media-item-blur';
+            blurLayer.style.backgroundImage = `url('${url}')`;
+            item.appendChild(blurLayer);
+        }
         if (!isUnlocked) {
             const levelSpan = document.createElement('span');
             levelSpan.className = 'media-lock-level';

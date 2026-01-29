@@ -3,13 +3,14 @@ const router = express.Router();
 const { User, Character } = require('../models');
 const connectDB = require('../db');
 
-// Normalize photo to { url, requiredLevel }; requiredLevel 1–4 if not set
+// Normalize photo to { url, requiredLevel }; first photo (index 0) is level 0 (always unlocked)
 function normalizePhoto(photo, index) {
+  const defaultLevel = index === 0 ? 0 : 1 + (index % 4);
   if (typeof photo === 'string') {
-    return { url: photo, requiredLevel: 1 + (index % 4) };
+    return { url: photo, requiredLevel: defaultLevel };
   }
   if (photo && typeof photo === 'object' && photo.url) {
-    return { url: photo.url, requiredLevel: typeof photo.requiredLevel === 'number' ? photo.requiredLevel : 1 + (index % 4) };
+    return { url: photo.url, requiredLevel: typeof photo.requiredLevel === 'number' ? photo.requiredLevel : defaultLevel };
   }
   return null;
 }

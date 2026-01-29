@@ -680,28 +680,6 @@
             margin-bottom: 5px;
         }
 
-        .sympathy-bar {
-            background: rgba(255, 255, 255, 0.1);
-            height: 6px;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 3px;
-            width: 150px;
-        }
-
-        .sympathy-fill {
-            background: linear-gradient(90deg, #f093fb 0%, #f5576c 50%, #feca57 100%);
-            height: 100%;
-            width: 0%;
-            transition: width 0.5s ease;
-            box-shadow: 0 0 10px rgba(240, 147, 251, 0.6);
-        }
-
-        .sympathy-text {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
         .mood-indicator {
             font-size: 11px;
             color: rgba(255, 255, 255, 0.7);
@@ -1670,7 +1648,6 @@
         }
 
         .gallery-item.locked {
-            filter: blur(4px) brightness(0.5);
             cursor: not-allowed;
             transition: all 0.3s;
             position: relative;
@@ -1876,9 +1853,25 @@
         }
 
         .chat-media-item.locked {
-            filter: blur(6px) brightness(0.5);
             cursor: not-allowed;
-            pointer-events: auto; /* consume clicks so nothing happens; unlock logic will change later */
+            pointer-events: auto;
+        }
+
+        .chat-media-item-blur {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            filter: blur(6px);
+            z-index: 0;
+        }
+
+        .chat-media-item.locked::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1;
         }
 
         .chat-media-item.locked::after {
@@ -1890,7 +1883,8 @@
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 28px;
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255, 255, 255, 0.95);
+            z-index: 10;
         }
 
         .chat-media-item .media-lock-level {
@@ -1901,7 +1895,7 @@
             font-size: 12px;
             font-weight: 600;
             color: white;
-            z-index: 2;
+            z-index: 10;
         }
 
         .profile-actions {
@@ -3159,10 +3153,6 @@
                     <div class="chat-girl-avatar" id="chatGirlAvatar"></div>
                     <div>
                         <div class="chat-girl-name" id="chatGirlName">—</div>
-                        <div class="sympathy-bar">
-                            <div class="sympathy-fill" id="sympathyFill"></div>
-                        </div>
-                        <small class="sympathy-text" id="sympathyText">Симпатия: 0</small>
                         <small class="mood-indicator" id="characterMood">😐 Нейтрально</small>
                     </div>
                 </div>
