@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { User, Character } = require('../models');
 const connectDB = require('../db');
+const { getDailyLimits, ensureDailyUsage } = require('../utils');
 
 // Normalize photo to { url, requiredLevel }; first photo (index 0) is level 0 (always unlocked)
 function normalizePhoto(photo, index) {
@@ -63,7 +64,25 @@ router.post('/request-photo', async (req, res) => {
         message: 'Новые фото откроются на следующем уровне'
       });
     }
-    
+
+    // Daily photo request limit by subscription (count each request, not each send)
+    ensureDailyUsage(user);
+    const subLevel = user.subscriptionLevel || 'free';
+    const limits = getDailyLimits(subLevel);
+    const photosUsed = user.photosRequestedToday != null ? user.photosRequestedToday : 0;
+    if (photosUsed >= limits.photos) {
+      const remainingMessages = Math.max(0, limits.messages - (user.messagesSentToday || 0));
+      const remainingPhotos = 0;
+      return res.json({
+        success: false,
+        message: `Дневной лимит запросов фото (${limits.photos}) исчерпан. Завтра снова будет доступно или оформи подписку.`,
+        dailyLimitExceeded: true,
+        dailyLimits: { remainingMessages, remainingPhotos, messagesLimit: limits.messages, photosLimit: limits.photos }
+      });
+    }
+    user.photosRequestedToday = photosUsed + 1;
+    user.markModified('photosRequestedToday');
+
     // Photo request %: girl sends with (percent) chance; e.g. 30% = 30% chance to send
     const percent = user.photoRequestPercent?.[characterId] ?? 0;
     const roll = Math.random() * 100;
@@ -91,7 +110,14 @@ router.post('/request-photo', async (req, res) => {
     user.markModified('lastPhotoRequest');
     user.markModified('photoRequestPercent');
     await user.save();
-    return res.json({ success: true, photo: chosen.url, photoRequestPercent: 0 });
+    const remainingMessages = Math.max(0, limits.messages - (user.messagesSentToday || 0));
+    const remainingPhotos = Math.max(0, limits.photos - user.photosRequestedToday);
+    return res.json({
+      success: true,
+      photo: chosen.url,
+      photoRequestPercent: 0,
+      dailyLimits: { remainingMessages, remainingPhotos, messagesLimit: limits.messages, photosLimit: limits.photos }
+    });
   } catch (e) {
     console.error('❌ Request photo error:', e);
     res.json({ success: false, error: e.message });

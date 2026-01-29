@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { User } = require('../models');
-const { calculateSympathyPoints } = require('../utils');
+const { calculateSympathyPoints, getDailyLimits, ensureDailyUsage } = require('../utils');
 const connectDB = require('../db');
 
 const MESSAGES_PER_LEVEL = 10;
@@ -50,6 +50,21 @@ router.post('/save-message', async (req, res) => {
     // Update stats for user messages (skip for photo-request message)
     const isPhotoRequestMessage = (sender === 'user' && message && String(message).trim() === '📸 Запрос фото');
     if (sender === 'user' && !isPhotoRequestMessage) {
+      // Daily message limit by subscription
+      ensureDailyUsage(user);
+      const subLevel = user.subscriptionLevel || 'free';
+      const limits = getDailyLimits(subLevel);
+      const used = user.messagesSentToday != null ? user.messagesSentToday : 0;
+      if (used >= limits.messages) {
+        return res.status(429).json({
+          success: false,
+          error: 'daily_limit',
+          message: `Дневной лимит сообщений (${limits.messages}) исчерпан. Завтра снова будет доступно или оформи подписку.`
+        });
+      }
+      user.messagesSentToday = used + 1;
+      user.markModified('messagesSentToday');
+
       // Sympathy (kept for future rude-message decrease)
       const sympathyPoints = calculateSympathyPoints(message);
       const finalPoints = Math.round(sympathyPoints * 10) / 10;
@@ -90,12 +105,17 @@ router.post('/save-message', async (req, res) => {
     console.log(`✅ Message saved. History length: ${user.chatHistory[characterId].length}`);
     
     const photoRequestPercent = user.photoRequestPercent?.[characterId] ?? 0;
+    const subLevel = user.subscriptionLevel || 'free';
+    const limits = getDailyLimits(subLevel);
+    const remainingMessages = Math.max(0, limits.messages - (user.messagesSentToday || 0));
+    const remainingPhotos = Math.max(0, limits.photos - (user.photosRequestedToday || 0));
     res.json({
       success: true,
       sympathy: user.sympathy[characterId] || 0,
       level: user.characterLevel?.[characterId] ?? 0,
       levelProgress: user.characterLevelProgress?.[characterId] ?? 0,
-      photoRequestPercent
+      photoRequestPercent,
+      dailyLimits: { remainingMessages, remainingPhotos, messagesLimit: limits.messages, photosLimit: limits.photos }
     });
   } catch (e) {
     console.error('❌ Save message error:', e);

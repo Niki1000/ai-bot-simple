@@ -1457,6 +1457,17 @@ function updatePhotoRequestButton() {
     el.textContent = 'Попросить фото' + (pct >= 0 ? ` ${Math.min(100, Math.max(0, pct))}%` : '');
 }
 
+// Get mood label and emoji from level (0–10); used by chat header and swipe cards
+function getMoodFromLevel(level) {
+    const l = level != null ? Number(level) : 0;
+    if (l >= 8) return { mood: 'excited', moodText: '😍', moodLabel: 'В восторге' };
+    if (l >= 6) return { mood: 'happy', moodText: '😊', moodLabel: 'Рада' };
+    if (l >= 4) return { mood: 'interested', moodText: '😌', moodLabel: 'Заинтересована' };
+    if (l >= 2) return { mood: 'neutral', moodText: '😐', moodLabel: 'Нейтрально' };
+    if (l >= 1) return { mood: 'shy', moodText: '🙂', moodLabel: 'Стесняется' };
+    return { mood: 'shy', moodText: '😊', moodLabel: 'Стесняется' };
+}
+
 // Calculate and display character mood based on level (sympathy bar removed)
 function updateMoodIndicator() {
     if (!selectedGirl) {return;}
@@ -1464,36 +1475,7 @@ function updateMoodIndicator() {
     const moodElement = document.getElementById('characterMood');
     if (!moodElement) {return;}
     
-    let mood = 'neutral';
-    let moodText = '😐';
-    let moodLabel = 'Нейтрально';
-    
-    if (characterLevel >= 8) {
-        mood = 'excited';
-        moodText = '😍';
-        moodLabel = 'В восторге';
-    } else if (characterLevel >= 6) {
-        mood = 'happy';
-        moodText = '😊';
-        moodLabel = 'Рада';
-    } else if (characterLevel >= 4) {
-        mood = 'interested';
-        moodText = '😌';
-        moodLabel = 'Заинтересована';
-    } else if (characterLevel >= 2) {
-        mood = 'neutral';
-        moodText = '😐';
-        moodLabel = 'Нейтрально';
-    } else if (characterLevel >= 1) {
-        mood = 'shy';
-        moodText = '🙂';
-        moodLabel = 'Стесняется';
-    } else {
-        mood = 'shy';
-        moodText = '😊';
-        moodLabel = 'Стесняется';
-    }
-    
+    const { mood, moodText, moodLabel } = getMoodFromLevel(characterLevel);
     moodElement.textContent = `${moodText} ${moodLabel}`;
     moodElement.className = `mood-indicator mood-${mood}`;
 }
@@ -2511,7 +2493,8 @@ let userEntitlements = {
     credits: 0,
     unlockedPhotos: {},
     characterLevel: {},
-    characterLevelProgress: {}
+    characterLevelProgress: {},
+    dailyLimits: null
 };
 
 // Exact URL match only: a photo is unlocked only if its exact URL is in the list (so one sent photo doesn't unlock all)
@@ -2532,6 +2515,7 @@ async function loadEntitlements() {
             userEntitlements.unlockedPhotos = entData.unlockedPhotos && typeof entData.unlockedPhotos === 'object' ? { ...entData.unlockedPhotos } : {};
             userEntitlements.characterLevel = entData.characterLevel && typeof entData.characterLevel === 'object' ? { ...entData.characterLevel } : {};
             userEntitlements.characterLevelProgress = entData.characterLevelProgress && typeof entData.characterLevelProgress === 'object' ? { ...entData.characterLevelProgress } : {};
+            userEntitlements.dailyLimits = entData.dailyLimits && typeof entData.dailyLimits === 'object' ? { ...entData.dailyLimits } : null;
             apiCache.entitlements = { ...userEntitlements };
             apiCache.entitlementsTimestamp = Date.now();
             console.log('🔑 Entitlements loaded (unlockedPhotos keys):', Object.keys(userEntitlements.unlockedPhotos || {}));

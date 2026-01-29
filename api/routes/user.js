@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('../models');
 const connectDB = require('../db');
+const { getDailyLimits, getTodayString } = require('../utils');
 
 // GET user
 router.get('/:telegramId', async (req, res) => {
@@ -71,13 +72,29 @@ router.get('/user-entitlements/:telegramId', async (req, res) => {
       const val = unlocked[k];
       unlockedPhotos[key] = Array.isArray(val) ? val.slice() : (val ? [val] : []);
     });
+
+    const subLevel = user.subscriptionLevel || 'free';
+    const limits = getDailyLimits(subLevel);
+    const today = getTodayString();
+    const isSameDay = user.dailyUsageDate === today;
+    const messagesUsed = isSameDay ? (user.messagesSentToday || 0) : 0;
+    const photosUsed = isSameDay ? (user.photosRequestedToday || 0) : 0;
+    const remainingMessages = Math.max(0, limits.messages - messagesUsed);
+    const remainingPhotos = Math.max(0, limits.photos - photosUsed);
+
     res.json({
       success: true,
-      subscriptionLevel: user.subscriptionLevel || 'free',
+      subscriptionLevel: subLevel,
       credits: user.credits || 0,
       unlockedPhotos,
       characterLevel: user.characterLevel || {},
-      characterLevelProgress: user.characterLevelProgress || {}
+      characterLevelProgress: user.characterLevelProgress || {},
+      dailyLimits: {
+        remainingMessages,
+        remainingPhotos,
+        messagesLimit: limits.messages,
+        photosLimit: limits.photos
+      }
     });
   } catch (e) {
     console.error('❌ Entitlements error:', e);

@@ -54,4 +54,36 @@ function recalculateSympathy(chatHistory) {
   return Math.round(totalSympathy * 10) / 10; // Round to 1 decimal
 }
 
-module.exports = { calculateSympathyPoints, recalculateSympathy };
+// Daily limits by subscription plan (messages and photo requests per day)
+const DAILY_LIMITS = {
+  free: { messages: 50, photos: 2 },
+  pro: { messages: 200, photos: 14 },
+  gold: { messages: 500, photos: 28 },
+  premium: { messages: 1000, photos: 50 } // alias for backward compat
+};
+
+function getDailyLimits(subscriptionLevel) {
+  const key = (subscriptionLevel || 'free').toLowerCase();
+  return DAILY_LIMITS[key] || DAILY_LIMITS.free;
+}
+
+function getTodayString() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Ensure user has daily usage for today; reset if new day. Modifies user in place.
+function ensureDailyUsage(user) {
+  const today = getTodayString();
+  if (!user.dailyUsageDate || user.dailyUsageDate !== today) {
+    user.dailyUsageDate = today;
+    user.messagesSentToday = 0;
+    user.photosRequestedToday = 0;
+    user.markModified('dailyUsageDate');
+    user.markModified('messagesSentToday');
+    user.markModified('photosRequestedToday');
+  }
+  return user;
+}
+
+module.exports = { calculateSympathyPoints, recalculateSympathy, getDailyLimits, getTodayString, ensureDailyUsage };
