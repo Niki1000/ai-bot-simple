@@ -2537,6 +2537,337 @@
             color: rgba(255, 255, 255, 0.4);
             font-size: 14px;
         }
+
+        /* ==================== SUBSCRIPTION PAGE ==================== */
+        .subscription-view {
+            display: none;
+            flex-direction: column;
+            height: calc(100% - 70px);
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 160;
+            background: linear-gradient(135deg, #1a0b2e 0%, #16213e 50%, #0f0f1e 100%);
+        }
+
+        .subscription-header {
+            padding: 15px 20px;
+            padding-top: max(15px, env(safe-area-inset-top));
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .subscription-header .back-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .subscription-header h2 {
+            font-size: clamp(20px, 4vw, 24px);
+            font-weight: 700;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subscription-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+        }
+
+        .subscription-plans-row {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .subscription-plans-row::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .plan-card {
+            flex: 0 0 min(85vw, 280px);
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .plan-card.current {
+            border-color: rgba(240, 147, 251, 0.8);
+            box-shadow: 0 0 24px rgba(240, 147, 251, 0.4);
+        }
+
+        .plan-card .plan-badge {
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1a0b2e;
+        }
+
+        .plan-card.free .plan-badge { background: rgba(255,255,255,0.4); color: #1a0b2e; }
+        .plan-card.pro .plan-badge { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .plan-card.gold .plan-badge { background: linear-gradient(135deg, #feca57 0%, #ff9f43 100%); }
+
+        .plan-card-image {
+            width: 100%;
+            height: 180px;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .plan-card-features {
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .plan-card-features li { list-style: none; margin-bottom: 6px; }
+
+        .pricing-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .pricing-option {
+            flex: 1;
+            min-width: 90px;
+            padding: 14px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pricing-option.selected {
+            border-color: white;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .pricing-option .price { font-size: 18px; font-weight: 700; color: white; }
+        .pricing-option .period { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+        .pricing-option .discount-badge {
+            font-size: 10px;
+            font-weight: 700;
+            color: #ff6b6b;
+            margin-top: 6px;
+        }
+
+        .promo-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .promo-row input {
+            flex: 1;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .promo-row input::placeholder { color: rgba(255,255,255,0.4); }
+
+        .btn-promo {
+            padding: 12px 18px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-unlock-plan {
+            width: 100%;
+            padding: 18px 24px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #f093fb 0%, #764ba2 100%);
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-unlock-plan:active { transform: scale(0.98); }
+
+        /* ==================== PAYMENT MODAL (BOTTOM SHEET) ==================== */
+        .payment-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 10001;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .payment-modal-overlay.show {
+            display: flex;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .payment-modal-sheet {
+            width: 100%;
+            max-width: 500px;
+            max-height: 85vh;
+            background: linear-gradient(180deg, #1a0b2e 0%, #16213e 100%);
+            border-radius: 24px 24px 0 0;
+            padding: 12px 20px 24px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .payment-modal-drag {
+            width: 40px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+
+        .payment-modal-sheet h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .payment-duration-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .payment-duration-option {
+            flex: 1;
+            padding: 14px 10px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255, 0.15);
+            border-radius: 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .payment-duration-option.selected {
+            border-color: rgba(240, 147, 251, 0.8);
+            background: rgba(240, 147, 251, 0.1);
+        }
+
+        .payment-duration-option .price { font-size: 16px; font-weight: 700; color: white; }
+        .payment-duration-option .period { font-size: 11px; color: rgba(255,255,255,0.6); }
+
+        .payment-methods-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .payment-method-btn {
+            flex: 1;
+            padding: 16px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .payment-method-btn:active { transform: scale(0.98); }
+
+        .payment-agreement-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .payment-agreement-row .toggle-switch {
+            flex-shrink: 0;
+        }
+
+        .payment-agreement-row .toggle-slider {
+            cursor: pointer;
+        }
+
+        .payment-agreement-row .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .payment-agreement-text {
+            font-size: 13px;
+            color: rgba(255,255,255,0.85);
+            line-height: 1.5;
+        }
+
+        .btn-pay {
+            width: 100%;
+            padding: 18px 24px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-pay.enabled {
+            background: linear-gradient(135deg, #f093fb 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-pay.disabled {
+            background: rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+            cursor: not-allowed;
+        }
     </style>
 
 
@@ -2803,20 +3134,20 @@
                 </div>
 
                 <!-- Subscription Ad Card (Right) -->
-                <div class="subscription-ad-card" onclick="showUpgradeModal()">
+                <div class="subscription-ad-card" onclick="showSubscriptionPage()">
                     <div class="ad-image-wrapper">
                         <div class="ad-gradient-overlay"></div>
                     </div>
                     <div class="ad-content">
                         <p class="ad-text">Получай больше фото ежедневно</p>
-                        <button class="ad-button" onclick="event.stopPropagation(); showUpgradeModal();">Получить</button>
+                        <button class="ad-button" onclick="event.stopPropagation(); showSubscriptionPage();">Получить</button>
                     </div>
                 </div>
             </div>
 
             <!-- Navigation Buttons -->
             <div class="profile-nav-buttons">
-                <button class="profile-nav-btn" onclick="showUpgradeModal()">
+                <button class="profile-nav-btn" onclick="showSubscriptionPage()">
                     <div class="nav-btn-icon">
                         <i class="fas fa-crown"></i>
                     </div>
@@ -2831,6 +3162,106 @@
                     <i class="fas fa-chevron-right nav-btn-arrow"></i>
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Subscription Page (from Profile -> Подписка) -->
+    <div id="subscriptionView" class="subscription-view">
+        <div class="subscription-header">
+            <button type="button" class="back-btn" onclick="closeSubscriptionPage()" aria-label="Назад">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2>Подписка</h2>
+            <div style="width: 40px;"></div>
+        </div>
+        <div class="subscription-content">
+            <div class="subscription-plans-row" id="subscriptionPlansRow">
+                <!-- Free -->
+                <div class="plan-card free" data-plan="free" id="planCardFree">
+                    <span class="plan-badge">Free</span>
+                    <div class="plan-card-image" style="background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);"></div>
+                    <ul class="plan-card-features">
+                        <li>500 сообщений</li>
+                        <li>2 кастомных фото</li>
+                        <li>5 фото из библиотеки</li>
+                    </ul>
+                </div>
+                <!-- Pro -->
+                <div class="plan-card pro" data-plan="pro" id="planCardPro">
+                    <span class="plan-badge">Pro</span>
+                    <div class="plan-card-image" style="background: linear-gradient(135deg, #4a2c6d 0%, #2d1f4e 100%);"></div>
+                    <ul class="plan-card-features">
+                        <li>3500 сообщений</li>
+                        <li>14 кастомных фото</li>
+                        <li>35 фото из библиотеки</li>
+                    </ul>
+                </div>
+                <!-- Gold -->
+                <div class="plan-card gold" data-plan="gold" id="planCardGold">
+                    <span class="plan-badge">Gold</span>
+                    <div class="plan-card-image" style="background: linear-gradient(135deg, #5c4a2e 0%, #3d2e1a 100%);"></div>
+                    <ul class="plan-card-features">
+                        <li>7000 сообщений</li>
+                        <li>28 кастомных фото</li>
+                        <li>70 фото из библиотеки</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pricing-options" id="subscriptionPricingOptions">
+                <div class="pricing-option selected" data-duration="7" data-price="590">
+                    <div class="price">590 ₽</div>
+                    <div class="period">7 дней</div>
+                </div>
+                <div class="pricing-option" data-duration="30" data-price="1790">
+                    <div class="price">1 790 ₽</div>
+                    <div class="period">1 месяц</div>
+                    <div class="discount-badge">Выгода 30%</div>
+                </div>
+                <div class="pricing-option" data-duration="90" data-price="4190">
+                    <div class="price">4 190 ₽</div>
+                    <div class="period">3 месяца</div>
+                    <div class="discount-badge">Выгода 44%</div>
+                </div>
+            </div>
+            <div class="promo-row">
+                <input type="text" id="promoCodeInput" placeholder="Введите промокод">
+                <button type="button" class="btn-promo" onclick="applyPromo()"><i class="fas fa-arrow-right"></i></button>
+            </div>
+            <button type="button" class="btn-unlock-plan" id="btnUnlockPlan" onclick="openPaymentModal()">Разблокировать</button>
+        </div>
+    </div>
+
+    <!-- Payment Modal (bottom sheet) -->
+    <div id="paymentModalOverlay" class="payment-modal-overlay" onclick="closePaymentModal(event)">
+        <div class="payment-modal-sheet" onclick="event.stopPropagation()">
+            <div class="payment-modal-drag"></div>
+            <h3>Выбрать способ оплаты</h3>
+            <div class="payment-duration-row" id="paymentDurationRow">
+                <div class="payment-duration-option selected" data-duration="7" data-price="590">
+                    <div class="price">590 ₽</div>
+                    <div class="period">7 дней</div>
+                </div>
+                <div class="payment-duration-option" data-duration="30" data-price="1790">
+                    <div class="price">1 790 ₽</div>
+                    <div class="period">1 месяц</div>
+                </div>
+                <div class="payment-duration-option" data-duration="90" data-price="4190">
+                    <div class="price">4 190 ₽</div>
+                    <div class="period">3 месяца</div>
+                </div>
+            </div>
+            <div class="payment-methods-row">
+                <button type="button" class="payment-method-btn"><i class="fas fa-star"></i> Звезды Telegram</button>
+                <button type="button" class="payment-method-btn"><i class="fas fa-credit-card"></i> Картой или СБП</button>
+            </div>
+            <div class="payment-agreement-row">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="paymentAgreementCheck" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="payment-agreement-text" id="paymentAgreementText">Я даю согласие на регулярные списания, на обработку персональных данных и принимаю условия публичной оферты</span>
+            </div>
+            <button type="button" class="btn-pay enabled" id="btnPay" onclick="submitPayment()">Оплатить</button>
         </div>
     </div>
 

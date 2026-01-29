@@ -1996,14 +1996,133 @@ async function openChatFromProfile(girl) {
     }
 }
 
-// Show upgrade modal (placeholder)
-function showUpgradeModal() {
-    const message = '🚀 Premium скоро!\n\nФункция Premium подписки находится в разработке. Следите за обновлениями!';
+// ==================== SUBSCRIPTION PAGE ====================
+
+// Show subscription page (from Profile -> Подписка)
+function showSubscriptionPage() {
+    document.getElementById('userProfileView').style.display = 'none';
+    document.getElementById('subscriptionView').style.display = 'flex';
+    document.querySelector('.bottom-nav')?.classList.remove('hidden');
+    document.querySelector('.container')?.classList.remove('chat-active');
+
+    const currentLevel = (userEntitlements.subscriptionLevel || 'free').toLowerCase();
+    const isPro = currentLevel === 'pro' || currentLevel === 'premium';
+    const isGold = currentLevel === 'gold';
+    const currentPlan = isGold ? 'gold' : (isPro ? 'pro' : 'free');
+
+    document.querySelectorAll('.plan-card').forEach(card => {
+        card.classList.remove('current');
+        if (card.dataset.plan === currentPlan) {
+            card.classList.add('current');
+        }
+    });
+
+    // Pricing option selection
+    document.querySelectorAll('#subscriptionPricingOptions .pricing-option').forEach(el => {
+        el.classList.remove('selected');
+        el.onclick = function () {
+            document.querySelectorAll('#subscriptionPricingOptions .pricing-option').forEach(o => o.classList.remove('selected'));
+            this.classList.add('selected');
+        };
+    });
+    const firstOpt = document.querySelector('#subscriptionPricingOptions .pricing-option');
+    if (firstOpt && !document.querySelector('#subscriptionPricingOptions .pricing-option.selected')) {
+        firstOpt.classList.add('selected');
+    }
+}
+
+// Close subscription page (back to profile)
+function closeSubscriptionPage() {
+    document.getElementById('subscriptionView').style.display = 'none';
+    document.getElementById('userProfileView').style.display = 'flex';
+}
+
+// Open payment modal (when "Разблокировать" is clicked)
+function openPaymentModal() {
+    const overlay = document.getElementById('paymentModalOverlay');
+    const agreementCheck = document.getElementById('paymentAgreementCheck');
+    const btnPay = document.getElementById('btnPay');
+
+    agreementCheck.checked = true;
+    btnPay.classList.remove('disabled');
+    btnPay.classList.add('enabled');
+    btnPay.disabled = false;
+
+    overlay.classList.add('show');
+
+    document.querySelectorAll('#paymentDurationRow .payment-duration-option').forEach(el => {
+        el.classList.remove('selected');
+        el.onclick = function () {
+            document.querySelectorAll('#paymentDurationRow .payment-duration-option').forEach(o => o.classList.remove('selected'));
+            this.classList.add('selected');
+        };
+    });
+    const firstDur = document.querySelector('#paymentDurationRow .payment-duration-option');
+    if (firstDur) {
+        firstDur.classList.add('selected');
+    }
+
+    agreementCheck.addEventListener('change', updatePayButtonState);
+    updatePayButtonState();
+}
+
+function updatePayButtonState() {
+    const agreementCheck = document.getElementById('paymentAgreementCheck');
+    const btnPay = document.getElementById('btnPay');
+    if (!agreementCheck || !btnPay) return;
+    if (agreementCheck.checked) {
+        btnPay.classList.remove('disabled');
+        btnPay.classList.add('enabled');
+        btnPay.disabled = false;
+    } else {
+        btnPay.classList.remove('enabled');
+        btnPay.classList.add('disabled');
+        btnPay.disabled = true;
+    }
+}
+
+// Close payment modal (click overlay or back)
+function closePaymentModal(event) {
+    if (event && event.target !== document.getElementById('paymentModalOverlay')) return;
+    document.getElementById('paymentModalOverlay').classList.remove('show');
+    document.getElementById('paymentAgreementCheck').removeEventListener('change', updatePayButtonState);
+}
+
+// Submit payment (only if agreement is checked)
+function submitPayment() {
+    const agreementCheck = document.getElementById('paymentAgreementCheck');
+    if (!agreementCheck || !agreementCheck.checked) {
+        if (window.Telegram?.WebApp) {
+            tg.showAlert('Подтвердите согласие на условия оферты.');
+        } else {
+            alert('Подтвердите согласие на условия оферты.');
+        }
+        return;
+    }
+    closePaymentModal({ target: document.getElementById('paymentModalOverlay') });
+    const message = 'Оплата в разработке. Скоро будет доступна!';
     if (window.Telegram?.WebApp) {
         tg.showAlert(message);
     } else {
         alert(message);
     }
+}
+
+function applyPromo() {
+    const input = document.getElementById('promoCodeInput');
+    const code = (input && input.value || '').trim();
+    if (!code) {
+        if (window.Telegram?.WebApp) tg.showAlert('Введите промокод');
+        else alert('Введите промокод');
+        return;
+    }
+    if (window.Telegram?.WebApp) tg.showAlert('Промокод в разработке');
+    else alert('Промокод в разработке');
+}
+
+// Show upgrade modal (redirects to subscription page)
+function showUpgradeModal() {
+    showSubscriptionPage();
 }
 
 // Load and display daily missions
@@ -2543,6 +2662,12 @@ window.openCharacterProfile = openCharacterProfile;
 window.clearChatWithCharacter = clearChatWithCharacter;
 window.openChatMediaGallery = openChatMediaGallery;
 window.closeChatMediaGallery = closeChatMediaGallery;
+window.showSubscriptionPage = showSubscriptionPage;
+window.closeSubscriptionPage = closeSubscriptionPage;
+window.openPaymentModal = openPaymentModal;
+window.closePaymentModal = closePaymentModal;
+window.submitPayment = submitPayment;
+window.applyPromo = applyPromo;
 
 // Start app
 document.addEventListener('DOMContentLoaded', initApp);
