@@ -377,6 +377,17 @@ function renderCards() {
     console.log(`🃏 Rendered cards. Index: ${currentGirlIndex}/${girls.length}`);
 }
 
+// Mood label from character level (0–10), same logic as chat header
+function getMoodFromLevel(level) {
+    const l = level == null ? 0 : Number(level);
+    if (l >= 8) return { moodText: '😍', moodLabel: 'В восторге' };
+    if (l >= 6) return { moodText: '😊', moodLabel: 'Рада' };
+    if (l >= 4) return { moodText: '😌', moodLabel: 'Заинтересована' };
+    if (l >= 2) return { moodText: '😐', moodLabel: 'Нейтрально' };
+    if (l >= 1) return { moodText: '🙂', moodLabel: 'Стесняется' };
+    return { moodText: '😊', moodLabel: 'Стесняется' };
+}
+
 // Create card element with lazy loading
 function createCard(girl, index) {
     const card = document.createElement('div');
@@ -396,6 +407,11 @@ function createCard(girl, index) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
+    const charLevel = userEntitlements.characterLevel && userEntitlements.characterLevel[girl._id] != null
+        ? userEntitlements.characterLevel[girl._id] : 0;
+    const mood = getMoodFromLevel(charLevel);
+    const safeMood = escapeHtml(`${mood.moodText} ${mood.moodLabel}`);
+
     const safeName = escapeHtml(girl.name);
     const safeAge = escapeHtml(`${girl.age} лет`);
     const safeBio = escapeHtml(girl.bio || girl.description || '');
@@ -405,6 +421,7 @@ function createCard(girl, index) {
         <div class="profile-info">
             <div class="profile-name">${safeName}</div>
             <div class="profile-age">${safeAge}</div>
+            <div class="profile-mood card-mood">${safeMood}</div>
             <div class="profile-bio">${safeBio}</div>
         </div>
     `;
@@ -977,30 +994,43 @@ async function sendMessage() {
     input.disabled = true;
 
     try {
-        // 1. Save user message to DB
+        // 1. Save user message to DB (use fetch to detect 429 daily limit)
         let saveUserData;
-        try {
-            const saveUserRes = await apiFetch('/api/webapp/save-message', {
-                method: 'POST',
-                body: JSON.stringify({
-                    telegramId: userId,
-                    characterId: selectedGirl._id,
-                    message: message,
-                    sender: 'user'
-                })
-            });
-            saveUserData = await safeJsonParse(saveUserRes);
-        } catch (error) {
-            console.error('❌ Failed to save user message:', error);
-            // Continue anyway - user message is already in UI
-            saveUserData = { success: false };
+        const savePayload = {
+            telegramId: userId,
+            characterId: selectedGirl._id,
+            message: message,
+            sender: 'user'
+        };
+        const saveRes = await fetch('/api/webapp/save-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(savePayload)
+        });
+        if (saveRes.status === 429) {
+            const errData = await saveRes.json().catch(() => ({}));
+            removeLastUserMessage();
+            if (errData.dailyLimits) updateProfileDailyLimitsDisplay(errData.dailyLimits);
+            const msg = errData.message || 'Дневной лимит сообщений исчерпан. Завтра снова будет доступно.';
+            if (window.Telegram?.WebApp) tg.showAlert(msg); else alert(msg);
+            input.disabled = false;
+            input.focus();
+            return;
         }
+        if (!saveRes.ok) {
+            const errText = await saveRes.text();
+            let errData;
+            try { errData = JSON.parse(errText); } catch { errData = { error: errText }; }
+            throw new Error(errData.message || errData.error || `HTTP ${saveRes.status}`);
+        }
+        saveUserData = await safeJsonParse(saveRes);
 
         if (saveUserData.success) {
             if (saveUserData.sympathy !== undefined) sympathy = saveUserData.sympathy;
             if (saveUserData.level != null) characterLevel = saveUserData.level;
             if (saveUserData.levelProgress != null) characterLevelProgress = saveUserData.levelProgress;
             if (saveUserData.photoRequestPercent != null) photoRequestPercent = saveUserData.photoRequestPercent;
+            if (saveUserData.dailyLimits) updateProfileDailyLimitsDisplay(saveUserData.dailyLimits);
             updateSympathyBar();
             updateLevelBar();
             updatePhotoRequestButton();
@@ -1178,6 +1208,14 @@ function parseThoughtsAndMessage(text) {
     };
 }
 
+// Remove the last user message from chat (e.g. when daily limit 429)
+function removeLastUserMessage() {
+    const container = document.getElementById('chatMessages');
+    if (!container) return;
+    const userMessages = container.querySelectorAll('.message.user');
+    if (userMessages.length) userMessages[userMessages.length - 1].remove();
+}
+
 // Add message to chat with timestamp (optional photoUrl: show image in bubble)
 function addMessage(text, sender, timestamp = null, photoUrl = null) {
     const container = document.getElementById('chatMessages');
@@ -1304,6 +1342,7 @@ async function requestPhoto() {
 
         if (data.success && data.photo) {
             if (data.photoRequestPercent != null) photoRequestPercent = data.photoRequestPercent;
+            if (data.dailyLimits) updateProfileDailyLimitsDisplay(data.dailyLimits);
             updatePhotoRequestButton();
             const photoMsg = 'Вот моё фото! 📸💕';
             try {
@@ -1334,6 +1373,7 @@ async function requestPhoto() {
             showPhoto(data.photo, null);
         } else {
             if (data.photoRequestPercent != null) photoRequestPercent = data.photoRequestPercent;
+            if (data.dailyLimits) updateProfileDailyLimitsDisplay(data.dailyLimits);
             updatePhotoRequestButton();
             const message = data.message || 'Пока не готова делиться фото 🙈';
             showError(message, false);
@@ -1859,39 +1899,11 @@ async function showUserProfile() {
             const subLevel = user.subscriptionLevel || 'free';
             const credits = user.credits || 0;
             
-            // Calculate daily limits
-            const dailyLimit = subLevel === 'premium' ? 1000 : 100;
-            const aiCallsToday = user.aiCallCount || 0;
-            const aiCallResetDate = user.aiCallResetDate ? new Date(user.aiCallResetDate) : null;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            // Load entitlements (includes daily limits from API) and update profile display
+            await loadEntitlements();
+            updateProfileDailyLimitsDisplay(userEntitlements.dailyLimits);
             
-            // Check if reset needed
-            let remainingMessages = dailyLimit;
-            if (aiCallResetDate) {
-                const resetDate = new Date(aiCallResetDate);
-                resetDate.setHours(0, 0, 0, 0);
-                if (resetDate.getTime() === today.getTime()) {
-                    // Same day, calculate remaining
-                    remainingMessages = Math.max(0, dailyLimit - aiCallsToday);
-                } else {
-                    // New day, full limit
-                    remainingMessages = dailyLimit;
-                }
-            }
-            
-            // Update daily limits display
-            const dailyGalleryLimitEl = document.getElementById('dailyGalleryLimit');
-            const dailyMessagesLimitEl = document.getElementById('dailyMessagesLimit');
-            
-            if (dailyGalleryLimitEl) {
-                dailyGalleryLimitEl.textContent = subLevel === 'premium' ? '∞' : '2';
-            }
-            if (dailyMessagesLimitEl) {
-                dailyMessagesLimitEl.textContent = remainingMessages;
-            }
-            
-            // Update local cache
+            // Update local cache from user
             userEntitlements.credits = credits;
             userEntitlements.subscriptionLevel = subLevel;
             userEntitlements.unlockedPhotos = user.unlockedPhotos || {};
@@ -2522,6 +2534,21 @@ async function loadEntitlements() {
         }
     } catch (e) {
         console.error('Failed to load entitlements:', e);
+    }
+}
+
+// Update profile section daily limits display (messages and photos remaining today)
+function updateProfileDailyLimitsDisplay(dailyLimits) {
+    if (!dailyLimits || typeof dailyLimits !== 'object') return;
+    const dailyGalleryLimitEl = document.getElementById('dailyGalleryLimit');
+    const dailyMessagesLimitEl = document.getElementById('dailyMessagesLimit');
+    if (dailyGalleryLimitEl) {
+        const v = dailyLimits.remainingPhotos;
+        dailyGalleryLimitEl.textContent = (v === Infinity || v == null) ? '∞' : String(v);
+    }
+    if (dailyMessagesLimitEl) {
+        const v = dailyLimits.remainingMessages;
+        dailyMessagesLimitEl.textContent = (v === Infinity || v == null) ? '∞' : String(v);
     }
 }
 
