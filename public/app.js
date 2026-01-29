@@ -2623,7 +2623,7 @@ async function openCharacterProfile() {
         items.forEach(function(el, idx){
             const blur = el.querySelector('.gallery-item-blur');
             const rect = blur ? blur.getBoundingClientRect() : {};
-            fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:profileGalleryAfter',message:'Locked tile blur layer',data:{idx,hasBlur:!!blur,width:rect.width|0,height:rect.height|0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
+            fetch('http://127.0.0.1:7243/ingest/13440a3b-4e6d-4438-815c-63f2add9ca3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:profileGalleryAfter',message:'Locked tile blur layer',data:{idx,hasBlur:!!blur,width:rect.width|0,height:rect.height|0},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1'})}).catch(()=>{});
         });
     }, 100);
     // #endregion
