@@ -20,7 +20,9 @@ function getPhotosWithLevels(char) {
   return char.photos.map((p, i) => normalizePhoto(p, i)).filter(Boolean);
 }
 
-// POST request photo – level-gated: only photos with requiredLevel <= user level can be unlocked
+const PHOTO_REQUEST_COOLDOWN_MS = 60 * 1000; // 1 minute per character
+
+// POST request photo – level-gated + cooldown to prevent spamming
 router.post('/request-photo', async (req, res) => {
   try {
     await connectDB();
@@ -31,6 +33,19 @@ router.post('/request-photo', async (req, res) => {
     
     if (!user || !char) {
       return res.json({ success: false, message: 'Не найдено' });
+    }
+    
+    // Cooldown: prevent spamming photo requests (per character)
+    const lastRequest = user.lastPhotoRequest?.[characterId];
+    if (lastRequest) {
+      const elapsed = Date.now() - new Date(lastRequest).getTime();
+      if (elapsed < PHOTO_REQUEST_COOLDOWN_MS) {
+        const waitSec = Math.ceil((PHOTO_REQUEST_COOLDOWN_MS - elapsed) / 1000);
+        return res.json({
+          success: false,
+          message: `Подожди ${waitSec} сек. перед следующим запросом фото`
+        });
+      }
     }
     
     const level = user.characterLevel?.[characterId] ?? 0;
@@ -53,7 +68,9 @@ router.post('/request-photo', async (req, res) => {
     const list = unlockedList.slice();
     if (!list.includes(chosen.url)) list.push(chosen.url);
     user.unlockedPhotos = { ...unlocked, [characterId]: list };
+    user.lastPhotoRequest = { ...(user.lastPhotoRequest || {}), [characterId]: new Date() };
     user.markModified('unlockedPhotos');
+    user.markModified('lastPhotoRequest');
     await user.save();
     return res.json({ success: true, photo: chosen.url });
   } catch (e) {

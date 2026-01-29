@@ -40,7 +40,7 @@ router.post('/match', async (req, res) => {
   }
 });
 
-// GET matches
+// GET matches – returns lastMessage, lastMessageTime, sympathy, level per match; sorted by last message (newest first)
 router.get('/matches/:telegramId', async (req, res) => {
   try {
     await connectDB();
@@ -52,9 +52,25 @@ router.get('/matches/:telegramId', async (req, res) => {
       _id: { $in: user.likes },
       isActive: true
     });
-    const matches = chars.map(c => normalizeCharacterPhotos(c));
-    console.log(`✅ Found ${matches.length} matches`);
-    res.json({ success: true, matches });
+    const chatHistory = user.chatHistory || {};
+    const sympathy = user.sympathy || {};
+    const characterLevel = user.characterLevel || {};
+    const enriched = chars.map(c => {
+      const charId = c._id.toString();
+      const hist = chatHistory[charId] || [];
+      const lastMsg = hist.length > 0 ? hist[hist.length - 1] : null;
+      const lastMessage = lastMsg ? (lastMsg.message || '').trim() : (c.welcomeMessage || 'Привет! 💕');
+      const lastMessageTime = lastMsg && lastMsg.timestamp ? new Date(lastMsg.timestamp).getTime() : 0;
+      const match = normalizeCharacterPhotos(c);
+      match.lastMessage = lastMessage;
+      match.lastMessageTime = lastMessageTime;
+      match.sympathy = sympathy[charId] || 0;
+      match.level = characterLevel[charId] ?? 0;
+      return match;
+    });
+    enriched.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+    console.log(`✅ Found ${enriched.length} matches (with lastMessage, sorted)`);
+    res.json({ success: true, matches: enriched });
   } catch (e) {
     console.error('❌ Matches error:', e);
     res.json({ success: false, error: e.message });

@@ -53,35 +53,29 @@ router.get('/', async (req, res) => {
         console.log(`🔍 Filtered: ${likedWithChat.length} characters removed (liked + chat exists)`);
       }
       
-      // Order characters by user preferences (sympathy, interaction history)
-      if (user && user.sympathy) {
+      // Order: never seen first (discovery), then passed, then liked-without-chat; within groups randomize
+      if (user) {
+        const likes = user.likes || [];
+        const passes = user.passes || [];
         chars.sort((a, b) => {
           const aId = a._id.toString();
           const bId = b._id.toString();
-          const aSympathy = user.sympathy[aId] || 0;
-          const bSympathy = user.sympathy[bId] || 0;
-          const aPassed = user.passes?.includes(aId) || false;
-          const bPassed = user.passes?.includes(bId) || false;
-          
-          // Never show passed characters first
+          const aNeverSeen = !likes.includes(aId) && !passes.includes(aId);
+          const bNeverSeen = !likes.includes(bId) && !passes.includes(bId);
+          const aPassed = passes.includes(aId);
+          const bPassed = passes.includes(bId);
+          // 1) Never seen first (discovery)
+          if (aNeverSeen && !bNeverSeen) return -1;
+          if (!aNeverSeen && bNeverSeen) return 1;
+          if (aNeverSeen && bNeverSeen) return Math.random() - 0.5;
+          // 2) Then passed (give another chance)
           if (aPassed && !bPassed) return 1;
           if (!aPassed && bPassed) return -1;
-          
-          // Show characters with higher sympathy first (but not too high - variety)
-          // Prefer characters with some interaction (sympathy > 0) but not too much
-          if (aSympathy > 0 && bSympathy === 0) return -1;
-          if (aSympathy === 0 && bSympathy > 0) return 1;
-          
-          // For characters with sympathy, prefer moderate levels (5-30) for variety
-          const aScore = aSympathy > 0 && aSympathy < 30 ? 1 : 0;
-          const bScore = bSympathy > 0 && bSympathy < 30 ? 1 : 0;
-          if (aScore !== bScore) return bScore - aScore;
-          
-          // Otherwise randomize
+          if (aPassed && bPassed) return Math.random() - 0.5;
+          // 3) Liked but no chat yet – randomize
           return Math.random() - 0.5;
         });
       } else {
-        // Randomize if no user data
         chars.sort(() => Math.random() - 0.5);
       }
       

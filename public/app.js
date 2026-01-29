@@ -1597,49 +1597,42 @@ async function loadMatches() {
 
         console.log('👤 User data:', userData);
 
-        matchesData.matches.forEach(girl => {
-            const sympathy = userData.user?.sympathy?.[girl._id] || 0;
-            
-            // Get last message from chat history, or fall back to welcome message
-            const chatHistory = userData.user?.chatHistory?.[girl._id] || [];
-            let lastMessage = girl.welcomeMessage || 'Привет! 💕';
-            if (chatHistory.length > 0) {
-                const lastMsg = chatHistory[chatHistory.length - 1];
-                lastMessage = lastMsg.message;
-                // Note: lastMsg.timestamp available if needed for future features
-            }
-            
-            // Calculate unread messages (bot messages after last read)
+        // Compute unreadCount per match (from user chatHistory + lastReadMessages)
+        const chatHistoryByChar = userData.user?.chatHistory || {};
+        const rows = matchesData.matches.map(girl => {
+            const chatHistory = chatHistoryByChar[girl._id] || [];
             const lastReadTime = lastReadMessages[girl._id] || 0;
             let unreadCount = 0;
-            
             if (chatHistory.length > 0) {
                 if (lastReadTime > 0) {
-                    // Count bot messages after last read time
                     unreadCount = chatHistory.filter(msg => {
-                        if (msg.sender !== 'bot') {return false;}
-                        const msgTime = new Date(msg.timestamp).getTime();
-                        return msgTime > lastReadTime;
+                        if (msg.sender !== 'bot') return false;
+                        return new Date(msg.timestamp).getTime() > lastReadTime;
                     }).length;
                 } else {
-                    // If never read, count all bot messages (including welcome)
                     unreadCount = chatHistory.filter(msg => msg.sender === 'bot').length;
                 }
-            } else {
-                // No chat history yet - welcome message will be unread when it's sent
-                unreadCount = 0;
             }
-            
-            // Truncate long messages for preview
-            if (lastMessage.length > 40) {
-                lastMessage = lastMessage.substring(0, 40) + '...';
-            }
+            return { girl, unreadCount };
+        });
+        // Sort: unread first, then by last message time (newest first) – API already provides lastMessageTime
+        rows.sort((a, b) => {
+            const unreadA = a.unreadCount > 0 ? 1 : 0;
+            const unreadB = b.unreadCount > 0 ? 1 : 0;
+            if (unreadB !== unreadA) return unreadB - unreadA;
+            const timeA = a.girl.lastMessageTime || 0;
+            const timeB = b.girl.lastMessageTime || 0;
+            return timeB - timeA;
+        });
+
+        rows.forEach(({ girl, unreadCount }) => {
+            const sympathy = girl.sympathy != null ? girl.sympathy : (userData.user?.sympathy?.[girl._id] || 0);
+            let lastMessage = girl.lastMessage != null ? String(girl.lastMessage) : (girl.welcomeMessage || 'Привет! 💕');
+            if (lastMessage.length > 40) lastMessage = lastMessage.substring(0, 40) + '...';
 
             const card = document.createElement('div');
             card.className = 'match-card';
-            if (unreadCount > 0) {
-                card.classList.add('has-notification');
-            }
+            if (unreadCount > 0) card.classList.add('has-notification');
             card.onclick = () => selectGirlFromMatches(girl);
 
             card.innerHTML = `
@@ -1652,7 +1645,7 @@ async function loadMatches() {
                         ${unreadCount > 0 ? '<span class="notification-dot"></span>' : ''}
                     </div>
                     <div class="match-age">${girl.age} лет</div>
-                    <div class="match-preview">${lastMessage}</div>
+                    <div class="match-preview">${lastMessage.replace(/</g, '&lt;')}</div>
                 </div>
                 <div class="match-meta">
                     <div class="match-time">Сейчас</div>
@@ -1666,7 +1659,7 @@ async function loadMatches() {
             matchesList.appendChild(card);
         });
 
-        console.log(`✅ Rendered ${matchesData.matches.length} match cards`);
+        console.log(`✅ Rendered ${rows.length} match cards`);
         document.getElementById('matchesLoading').style.display = 'none';
 
     } catch (error) {
