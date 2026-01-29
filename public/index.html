@@ -2615,7 +2615,8 @@
         }
 
         .plan-card {
-            flex: 0 0 min(88vw, 340px);
+            flex: 0 0 min(82vw, 300px);
+            min-height: 420px;
             scroll-snap-align: center;
             scroll-snap-stop: always;
             background: rgba(255, 255, 255, 0.06);
@@ -2652,7 +2653,7 @@
         .plan-card-image-wrap {
             position: relative;
             width: 100%;
-            height: 280px;
+            height: 240px;
             overflow: hidden;
         }
 
@@ -2685,7 +2686,20 @@
             line-height: 1.7;
         }
 
-        .plan-card-features li { list-style: none; margin-bottom: 8px; padding-left: 0; }
+        .plan-card-features li {
+            list-style: none;
+            margin-bottom: 8px;
+            padding-left: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .plan-feature-icon {
+            font-size: 14px;
+            color: rgba(240, 147, 251, 0.95);
+            flex-shrink: 0;
+        }
 
         .carousel-dots {
             display: flex;
@@ -3258,9 +3272,9 @@
                         <div class="plan-card-image-overlay"></div>
                     </div>
                     <ul class="plan-card-features">
-                        <li>500 сообщений</li>
-                        <li>2 кастомных фото</li>
-                        <li>5 фото из библиотеки</li>
+                        <li><i class="fas fa-comment plan-feature-icon"></i> 500 сообщений</li>
+                        <li><i class="fas fa-camera plan-feature-icon"></i> 2 кастомных фото</li>
+                        <li><i class="fas fa-images plan-feature-icon"></i> 5 фото из библиотеки</li>
                     </ul>
                 </div>
                 <!-- Pro -->
@@ -3271,9 +3285,9 @@
                         <div class="plan-card-image-overlay"></div>
                     </div>
                     <ul class="plan-card-features">
-                        <li>3500 сообщений</li>
-                        <li>14 кастомных фото</li>
-                        <li>35 фото из библиотеки</li>
+                        <li><i class="fas fa-comment plan-feature-icon"></i> 3500 сообщений</li>
+                        <li><i class="fas fa-camera plan-feature-icon"></i> 14 кастомных фото</li>
+                        <li><i class="fas fa-images plan-feature-icon"></i> 35 фото из библиотеки</li>
                     </ul>
                 </div>
                 <!-- Gold -->
@@ -3284,9 +3298,9 @@
                         <div class="plan-card-image-overlay"></div>
                     </div>
                     <ul class="plan-card-features">
-                        <li>7000 сообщений</li>
-                        <li>28 кастомных фото</li>
-                        <li>70 фото из библиотеки</li>
+                        <li><i class="fas fa-comment plan-feature-icon"></i> 7000 сообщений</li>
+                        <li><i class="fas fa-camera plan-feature-icon"></i> 28 кастомных фото</li>
+                        <li><i class="fas fa-images plan-feature-icon"></i> 70 фото из библиотеки</li>
                     </ul>
                 </div>
             </div>
