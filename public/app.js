@@ -377,17 +377,6 @@ function renderCards() {
     console.log(`🃏 Rendered cards. Index: ${currentGirlIndex}/${girls.length}`);
 }
 
-// Mood label from character level (0–10), same logic as chat header
-function getMoodFromLevel(level) {
-    const l = level == null ? 0 : Number(level);
-    if (l >= 8) return { moodText: '😍', moodLabel: 'В восторге' };
-    if (l >= 6) return { moodText: '😊', moodLabel: 'Рада' };
-    if (l >= 4) return { moodText: '😌', moodLabel: 'Заинтересована' };
-    if (l >= 2) return { moodText: '😐', moodLabel: 'Нейтрально' };
-    if (l >= 1) return { moodText: '🙂', moodLabel: 'Стесняется' };
-    return { moodText: '😊', moodLabel: 'Стесняется' };
-}
-
 // Create card element with lazy loading
 function createCard(girl, index) {
     const card = document.createElement('div');

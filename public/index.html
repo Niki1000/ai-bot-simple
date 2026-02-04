@@ -880,15 +880,25 @@
             box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
         }
 
-        /* Thoughts styling for bot messages */
-        .message-thoughts {
+        /* Thoughts block: character's inner thoughts (muted, distinct from reply) */
+        .message.bot .message-thoughts {
             font-size: 13px;
-            font-style: italic;
-            color: rgba(255, 255, 255, 0.6);
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-style: normal;
+            color: rgba(200, 180, 220, 0.9);
             line-height: 1.5;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            padding-bottom: 12px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Actual reply: what the character says out loud (bright, prominent) */
+        .message.bot .message-bubble .message-text {
+            color: rgba(255, 255, 255, 1);
+            font-size: 15px;
+            line-height: 1.45;
         }
 
         /* Typing Indicator */
@@ -905,6 +915,15 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .typing-text.thinking {
+            animation: thinkingPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes thinkingPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
         }
 
         .typing-dots {
@@ -3432,8 +3451,8 @@
                         <div class="plan-card-image-overlay"></div>
                     </div>
                     <ul class="plan-card-features">
-                        <li><i class="fas fa-comment plan-feature-icon"></i> 500 сообщений</li>
-                        <li><i class="fas fa-camera plan-feature-icon"></i> 2 кастомных фото</li>
+                        <li><i class="fas fa-comment plan-feature-icon"></i> 50 сообщений в день</li>
+                        <li><i class="fas fa-camera plan-feature-icon"></i> 2 кастомных фото в день</li>
                         <li><i class="fas fa-images plan-feature-icon"></i> 5 фото из библиотеки</li>
                     </ul>
                 </div>
@@ -3445,8 +3464,8 @@
                         <div class="plan-card-image-overlay"></div>
                     </div>
                     <ul class="plan-card-features">
-                        <li><i class="fas fa-comment plan-feature-icon"></i> 3500 сообщений</li>
-                        <li><i class="fas fa-camera plan-feature-icon"></i> 14 кастомных фото</li>
+                        <li><i class="fas fa-comment plan-feature-icon"></i> 200 сообщений в день</li>
+                        <li><i class="fas fa-camera plan-feature-icon"></i> 14 кастомных фото в день</li>
                         <li><i class="fas fa-images plan-feature-icon"></i> 35 фото из библиотеки</li>
                     </ul>
                 </div>
@@ -3458,8 +3477,8 @@
                         <div class="plan-card-image-overlay"></div>
                     </div>
                     <ul class="plan-card-features">
-                        <li><i class="fas fa-comment plan-feature-icon"></i> 7000 сообщений</li>
-                        <li><i class="fas fa-camera plan-feature-icon"></i> 28 кастомных фото</li>
+                        <li><i class="fas fa-comment plan-feature-icon"></i> 500 сообщений в день</li>
+                        <li><i class="fas fa-camera plan-feature-icon"></i> 28 кастомных фото в день</li>
                         <li><i class="fas fa-images plan-feature-icon"></i> 70 фото из библиотеки</li>
                     </ul>
                 </div>

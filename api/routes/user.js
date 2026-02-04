@@ -4,6 +4,40 @@ const { User } = require('../models');
 const connectDB = require('../db');
 const { getDailyLimits, getTodayString } = require('../utils');
 
+const VALID_SUBSCRIPTION_LEVELS = ['free', 'pro', 'gold', 'premium'];
+
+// POST set-subscription (for testing until payment is implemented)
+router.post('/set-subscription', async (req, res) => {
+  try {
+    const secret = process.env.SET_SUBSCRIPTION_SECRET;
+    if (secret && req.headers['x-set-subscription-secret'] !== secret && req.body?.secret !== secret) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+    await connectDB();
+    const { telegramId, subscriptionLevel } = req.body;
+    const level = (subscriptionLevel || '').toLowerCase();
+    if (!VALID_SUBSCRIPTION_LEVELS.includes(level)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid subscriptionLevel. Use: free, pro, gold, premium'
+      });
+    }
+    const user = await User.findOneAndUpdate(
+      { telegramId: parseInt(telegramId) },
+      { $set: { subscriptionLevel: level } },
+      { new: true, upsert: true }
+    );
+    if (!user) {
+      return res.json({ success: false, error: 'User not found' });
+    }
+    console.log(`✅ Set subscription for ${telegramId} to ${level}`);
+    res.json({ success: true, subscriptionLevel: user.subscriptionLevel });
+  } catch (e) {
+    console.error('❌ Set-subscription error:', e);
+    res.json({ success: false, error: e.message });
+  }
+});
+
 // GET user
 router.get('/:telegramId', async (req, res) => {
   try {
